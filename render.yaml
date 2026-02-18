@@ -1,0 +1,43 @@
+{
+  "name": "ecomm",
+  "version": "2024.01.01",
+  "description": "E-Commerce Django Application with MongoDB",
+  "keywords": ["django", "ecommerce", "mongodb"],
+  "repository": "https://github.com/yourusername/ecomm",
+  "buildCommand": "pip install -r requirements.txt",
+  "startCommand": "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT",
+  "envVars": [
+    {
+      "key": "DEBUG",
+      "value": "False"
+    },
+    {
+      "key": "ALLOWED_HOSTS",
+      "value": "your-app.onrender.com"
+    },
+    {
+      "key": "MONGODB_URI",
+      "value": "mongodb://username:password@cluster.mongodb.net/database"
+    },
+    {
+      "key": "SECRET_KEY",
+      "value": "your-secret-key-here"
+    },
+    {
+      "key": "JWT_SECRET_KEY",
+      "value": "your-jwt-secret-key-here"
+    }
+  ],
+  "database": {
+    "mongodb": {
+      "cluster": "your-mongodb-atlas-cluster",
+      "database": "ecomm_db"
+    }
+  },
+  "addons": [
+    {
+      "plan": "mongodbatlas:m2-free",
+      "name": "mongodb"
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{% extends 'admin/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Order {{ order.order_number }} - Admin Panel{% endblock %}
+
+{% block admin_content %}
+<div class="mb-6">
+    <nav class="flex items-center text-sm text-gray-500 mb-2">
+        <a href="{% url 'admin_orders' %}" class="hover:text-primary-600">Orders</a>
+        <svg class="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span class="text-gray-700">{{ order.order_number }}</span>
+    </nav>
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-800">Order {{ order.order_number }}</h1>
+        <span class="px-3 py-1.5 rounded-lg text-sm font-medium
+            {% if order.order_status == 'pending' %}bg-yellow-100 text-yellow-700
+            {% elif order.order_status == 'processing' %}bg-blue-100 text-blue-700
+            {% elif order.order_status == 'shipped' %}bg-purple-100 text-purple-700
+            {% elif order.order_status == 'delivered' %}bg-green-100 text-green-700
+            {% elif order.order_status == 'cancelled' %}bg-red-100 text-red-700{% endif %}">
+            {{ order.order_status|title }}
+        </span>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Order Items</h2>
+            <div class="space-y-4">
+                {% for item in order.items %}
+                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                    <div class="w-16 h-16 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+                        {% if item.product_image %}
+                            <img src="{{ item.product_image }}" alt="{{ item.product_name }}" class="w-full h-full object-cover">
+                        {% else %}
+                            <div class="w-full h-full flex items-center justify-center text-gray-400">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-800">{{ item.product_name }}</p>
+                        <p class="text-sm text-gray-500">Qty: {{ item.quantity }} × {{ item.price|rupee }}</p>
+                    </div>
+                    <p class="font-bold text-gray-800">{{ item.total|rupee }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="mt-6 pt-6 border-t border-gray-200 space-y-3">
+                <div class="flex justify-between text-gray-600">
+                    <span>Subtotal</span>
+                    <span class="font-medium">{{ order.subtotal|rupee }}</span>
+                </div>
+                <div class="flex justify-between text-gray-600">
+                    <span>Shipping</span>
+                    <span class="font-medium">{% if order.shipping_cost == 0 %}Free{% else %}{{ order.shipping_cost|rupee }}{% endif %}</span>
+                </div>
+                <div class="flex justify-between text-gray-600">
+                    <span>Tax</span>
+                    <span class="font-medium">{{ order.tax|rupee }}</span>
+                </div>
+                {% if order.discount > 0 %}
+                <div class="flex justify-between text-green-600">
+                    <span>Discount</span>
+                    <span class="font-medium">-{{ order.discount|rupee }}</span>
+                </div>
+                {% endif %}
+                <div class="flex justify-between text-xl font-bold pt-3 border-t border-gray-200">
+                    <span class="text-gray-800">Total</span>
+                    <span class="text-primary-600">{{ order.total|rupee }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Update Order Status</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {% for status in 'pending,processing,shipped,delivered,cancelled,refunded'|make_list %}
+                <button onclick="updateStatus('{{ status }}')" 
+                        class="px-4 py-3 rounded-xl text-sm font-medium transition-all
+                               {% if order.order_status == status %}bg-primary-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                    {{ status|title }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="space-y-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Order Info</h2>
+            <dl class="space-y-4">
+                <div>
+                    <dt class="text-sm text-gray-500">Order Number</dt>
+                    <dd class="font-medium text-gray-800">{{ order.order_number }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500">Order Date</dt>
+                    <dd class="font-medium text-gray-800">{{ order.created_at|date:"F d, Y \a\t g:i A" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500">Payment Method</dt>
+                    <dd class="font-medium text-gray-800">{{ order.get_payment_method_display|default:order.payment_method|title }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500">Payment Status</dt>
+                    <dd>
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-medium
+                            {% if order.payment_status == 'paid' %}bg-green-100 text-green-700
+                            {% elif order.payment_status == 'pending' %}bg-yellow-100 text-yellow-700
+                            {% elif order.payment_status == 'failed' %}bg-red-100 text-red-700{% endif %}">
+                            {{ order.payment_status|title }}
+                        </span>
+                    </dd>
+                </div>
+                {% if order.tracking_number %}
+                <div>
+                    <dt class="text-sm text-gray-500">Tracking Number</dt>
+                    <dd class="font-mono font-medium text-gray-800">{{ order.tracking_number }}</dd>
+                </div>
+                {% endif %}
+                {% if order.notes %}
+                <div>
+                    <dt class="text-sm text-gray-500">Notes</dt>
+                    <dd class="text-gray-800">{{ order.notes }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Customer</h2>
+            <div class="space-y-3">
+                <p class="font-medium text-gray-800">{{ order.shipping_address.full_name }}</p>
+                <p class="text-sm text-gray-600">{{ order.user_email }}</p>
+                {% if order.shipping_address.phone %}
+                <p class="text-sm text-gray-600">{{ order.shipping_address.phone }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Shipping Address</h2>
+            <address class="text-gray-600 not-italic text-sm space-y-1">
+                <p>{{ order.shipping_address.street }}</p>
+                <p>{{ order.shipping_address.city }}, {{ order.shipping_address.state }} {{ order.shipping_address.postal_code }}</p>
+                <p>{{ order.shipping_address.country }}</p>
+            </address>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateStatus(status) {
+    $.ajax({
+        url: '{% url "admin_order_update" order.order_number %}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ status: status }),
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            }
+        },
+        error: function(xhr) {
+            alert('Error updating order status');
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -25,3 +25,40 @@ def div(value, arg):
         return float(value) / float(arg)
     except (ValueError, ZeroDivisionError, TypeError):
         return 0
+
+
+@register.filter
+def make_list(value):
+    """Split a string by comma into a list."""
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(',')]
+    return value
+
+
+@register.simple_tag
+def currency(value):
+    """Format value as Indian Rupees."""
+    try:
+        amount = float(value)
+        return f"₹{amount:,.2f}"
+    except (ValueError, TypeError):
+        return "₹0.00"
+
+
+@register.filter
+def rupee(value):
+    """Format value as Indian Rupees (filter version)."""
+    try:
+        amount = float(value)
+        return f"₹{amount:,.2f}"
+    except (ValueError, TypeError):
+        return "₹0.00"
+
+
+@register.filter
+def discount_amount(price, compare_price):
+    """Calculate discount amount."""
+    try:
+        return float(compare_price) - float(price)
+    except (ValueError, TypeError):
+        return 0

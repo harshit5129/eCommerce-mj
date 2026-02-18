@@ -1,0 +1,92 @@
+{% load custom_filters %}
+{% if offers %}
+<section class="py-8">
+    <div class="container mx-auto px-4">
+        {% for offer in offers %}
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 p-1">
+            <div class="bg-gray-900 rounded-xl p-6 md:p-8">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div class="text-center md:text-left">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 bg-red-500 text-white rounded-full text-sm font-bold mb-3 animate-pulse">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+                            </svg>
+                            LIMITED TIME OFFER
+                        </div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">{{ offer.name }}</h2>
+                        <p class="text-gray-300 text-lg">{{ offer.description }}</p>
+                        <div class="mt-4 flex flex-wrap items-center gap-4 justify-center md:justify-start">
+                            <span class="px-4 py-2 bg-white/10 backdrop-blur rounded-lg text-white font-bold text-xl">
+                                {{ offer.discount_value }}{% if offer.discount_type == 'percentage' %}% OFF{% else %}₹ OFF{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <p class="text-gray-400 text-sm mb-2">Offer ends in:</p>
+                        <div class="flex gap-2" id="countdown-{{ offer.id }}">
+                            <div class="bg-white/10 backdrop-blur rounded-lg px-3 py-2 text-center min-w-[60px]">
+                                <span class="text-2xl font-bold text-white countdown-days">00</span>
+                                <p class="text-xs text-gray-400">Days</p>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur rounded-lg px-3 py-2 text-center min-w-[60px]">
+                                <span class="text-2xl font-bold text-white countdown-hours">00</span>
+                                <p class="text-xs text-gray-400">Hours</p>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur rounded-lg px-3 py-2 text-center min-w-[60px]">
+                                <span class="text-2xl font-bold text-white countdown-minutes">00</span>
+                                <p class="text-xs text-gray-400">Min</p>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur rounded-lg px-3 py-2 text-center min-w-[60px]">
+                                <span class="text-2xl font-bold text-white countdown-seconds">00</span>
+                                <p class="text-xs text-gray-400">Sec</p>
+                            </div>
+                        </div>
+                        <a href="{% url 'product_list' %}?offer={{ offer.slug }}" 
+                           class="mt-4 px-6 py-3 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-100 transition-colors shadow-lg">
+                            Shop Now
+                            <svg class="w-5 h-5 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        (function() {
+            const countdownEl = document.getElementById('countdown-{{ offer.id }}');
+            const endTime = new Date('{{ offer.ends_at|date:"c" }}').getTime();
+            
+            function updateCountdown() {
+                const now = new Date().getTime();
+                const distance = endTime - now;
+                
+                if (distance < 0) {
+                    countdownEl.querySelector('.countdown-days').textContent = '00';
+                    countdownEl.querySelector('.countdown-hours').textContent = '00';
+                    countdownEl.querySelector('.countdown-minutes').textContent = '00';
+                    countdownEl.querySelector('.countdown-seconds').textContent = '00';
+                    return;
+                }
+                
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                
+                countdownEl.querySelector('.countdown-days').textContent = String(days).padStart(2, '0');
+                countdownEl.querySelector('.countdown-hours').textContent = String(hours).padStart(2, '0');
+                countdownEl.querySelector('.countdown-minutes').textContent = String(minutes).padStart(2, '0');
+                countdownEl.querySelector('.countdown-seconds').textContent = String(seconds).padStart(2, '0');
+            }
+            
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        })();
+        </script>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

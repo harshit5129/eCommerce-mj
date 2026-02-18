@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Cookie Preferences - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 shadow-xl rounded-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-8">
+                <h1 class="text-3xl font-bold text-white">Cookie Preferences</h1>
+                <p class="mt-2 text-blue-100">Manage your cookie consent settings</p>
+            </div>
+            
+            <form method="post" class="p-6 space-y-6">
+                {% csrf_token %}
+                
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Necessary Cookies</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">These cookies are essential for the website to function properly.</p>
+                        </div>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-sm font-medium">
+                            Always Active
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Analytics Cookies</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Help us understand how visitors interact with our website.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="analytics" class="sr-only peer" {% if preferences.analytics %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Marketing Cookies</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Used to deliver relevant ads and track campaign performance.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="marketing" class="sr-only peer" {% if preferences.marketing %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">What are cookies?</h4>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        Cookies are small text files stored on your device that help us improve your experience. 
+                        You can change your preferences at any time by visiting this page.
+                    </p>
+                </div>
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                
+                <div class="flex items-center justify-between pt-4">
+                    <a href="{% url 'home' %}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                        &larr; Back to Home
+                    </a>
+                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl">
+                        Save Preferences
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            Last updated: {{ preferences.timestamp|default:"Not set" }}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -70,6 +70,7 @@ class Product(Document):
     
     is_active = BooleanField(default=True)
     is_featured = BooleanField(default=False)
+    product_status = StringField(max_length=20, default='active')
     
     meta = {
         'collection': 'products',

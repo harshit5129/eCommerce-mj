@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Refund Policy - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+            <div class="bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-12">
+                <h1 class="text-4xl font-bold text-white">Refund Policy</h1>
+                <p class="mt-2 text-green-100">Last updated: {% now "F j, Y" %}</p>
+            </div>
+            
+            <div class="px-8 py-8 prose prose-lg dark:prose-invert max-w-none">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mt-0">Return Policy</h2>
+                <p class="text-gray-600 dark:text-gray-300">We want you to be completely satisfied with your purchase. If you're not satisfied, you may return most items within <strong>30 days</strong> of delivery for a full refund or exchange.</p>
+                
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Eligibility for Returns</h2>
+                <p class="text-gray-600 dark:text-gray-300">To be eligible for a return, items must be:</p>
+                <ul class="list-disc pl-6 text-gray-600 dark:text-gray-300">
+                    <li>In original condition with all tags attached</li>
+                    <li>Unworn, unwashed, or unused</li>
+                    <li>In original packaging</li>
+                    <li>Accompanied by proof of purchase</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Non-Returnable Items</h2>
+                <p class="text-gray-600 dark:text-gray-300">The following items cannot be returned:</p>
+                <ul class="list-disc pl-6 text-gray-600 dark:text-gray-300">
+                    <li>Personalized or custom-made items</li>
+                    <li>Intimate or sanitary goods</li>
+                    <li>Digital products or downloads</li>
+                    <li>Gift cards</li>
+                    <li>Items on final sale</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">How to Initiate a Return</h2>
+                <ol class="list-decimal pl-6 text-gray-600 dark:text-gray-300">
+                    <li>Log into your account and go to "Order History"</li>
+                    <li>Select the order containing the item(s) you wish to return</li>
+                    <li>Click "Request Return" and select the reason</li>
+                    <li>Print the prepaid shipping label</li>
+                    <li>Pack the item securely and drop it off at the carrier</li>
+                </ol>
+                
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Refund Processing</h2>
+                <p class="text-gray-600 dark:text-gray-300">Once your return is received and inspected:</p>
+                <ul class="list-disc pl-6 text-gray-600 dark:text-gray-300">
+                    <li>We will notify you of the approval or rejection of your refund</li>
+                    <li>Approved refunds are processed within 5-7 business days</li>
+                    <li>Credit will be applied to your original payment method</li>
+                    <li>Shipping costs are non-refundable unless the return is due to our error</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Exchanges</h2>
+                <p class="text-gray-600 dark:text-gray-300">If you need to exchange an item for a different size or color, please return the original item and place a new order. This ensures faster processing and availability.</p>
+                
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Damaged or Defective Items</h2>
+                <p class="text-gray-600 dark:text-gray-300">If you receive a damaged or defective item, please <a href="{% url 'contact' %}" class="text-green-600 hover:text-green-700">contact us</a> immediately with photos of the damage. We will arrange for a replacement or full refund at no additional cost.</p>
+                
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Questions?</h2>
+                <p class="text-gray-600 dark:text-gray-300">If you have any questions about our refund policy, please <a href="{% url 'contact' %}" class="text-green-600 hover:text-green-700">contact our customer support</a>.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

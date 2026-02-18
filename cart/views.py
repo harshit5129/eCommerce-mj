@@ -1,7 +1,7 @@
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.views import View
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from products.models import Product
 import json
 
@@ -18,10 +18,16 @@ class CartView(View):
             item['total'] = item.get('product_price', 0) * item.get('quantity', 1)
         
         cart_total = sum(item.get('total', 0) for item in cart_items)
+        shipping_cost = 0 if cart_total >= 4000 else 99
+        tax = cart_total * 0.18
+        order_total = cart_total + shipping_cost + tax
         
         context = {
             'cart_items': cart_items,
             'cart_total': cart_total,
+            'shipping_cost': shipping_cost,
+            'tax': tax,
+            'order_total': order_total,
         }
         return render(request, self.template_name, context)
 
@@ -36,7 +42,12 @@ def add_to_cart(request):
         product_id = data.get('product_id')
         quantity = int(data.get('quantity', 1))
         
-        product = get_object_or_404(Product, id=product_id, is_active=True)
+        if quantity < 1:
+            return JsonResponse({'error': 'Invalid quantity'}, status=400)
+        
+        product = Product.objects(id=product_id, is_active=True).first()
+        if not product:
+            return JsonResponse({'error': 'Product not found'}, status=404)
         
         if product.track_inventory and product.stock_quantity < quantity:
             return JsonResponse({
@@ -62,8 +73,9 @@ def add_to_cart(request):
             primary_image = product.primary_image
             cart.append({
                 'product_id': str(product.id),
+                'product_slug': product.slug,
                 'product_name': product.name,
-                'product_price': product.price,
+                'product_price': float(product.price),
                 'product_image': primary_image.url if primary_image else None,
                 'quantity': quantity,
             })
@@ -100,16 +112,21 @@ def update_cart_item(request):
         
         cart = request.session.get('cart', [])
         
-        product = Product.objects.get(id=product_id, is_active=True)
+        product = Product.objects(id=product_id, is_active=True).first()
+        if not product:
+            return JsonResponse({'error': 'Product not found'}, status=404)
+        
         if product.track_inventory and product.stock_quantity < quantity:
             return JsonResponse({
                 'error': f'Only {product.stock_quantity} items available in stock'
             }, status=400)
         
+        item_total = 0
         for item in cart:
             if item.get('product_id') == product_id:
                 item['quantity'] = quantity
                 item['total'] = item.get('product_price', 0) * quantity
+                item_total = item['total']
                 break
         
         request.session['cart'] = cart
@@ -122,7 +139,7 @@ def update_cart_item(request):
             'success': True,
             'cart_total': cart_total,
             'cart_count': cart_count,
-            'item_total': item.get('total', 0),
+            'item_total': item_total,
         })
     
     except Product.DoesNotExist:

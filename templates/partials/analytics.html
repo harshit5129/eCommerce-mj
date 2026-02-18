@@ -1,0 +1,116 @@
+<!-- Analytics Tracking Script -->
+<script>
+(function() {
+    const consent = JSON.parse(sessionStorage.getItem('cookie_consent') || '{}');
+    
+    window.Analytics = {
+        enabled: consent.analytics || false,
+        
+        track: function(eventType, data) {
+            if (!this.enabled) return;
+            
+            fetch('/my-admin/analytics/event/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    data: data || {}
+                })
+            });
+        },
+        
+        pageView: function(path, title) {
+            if (!this.enabled) return;
+            
+            fetch('/my-admin/analytics/pageview/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    path: path || window.location.pathname,
+                    title: title || document.title,
+                    referrer: document.referrer
+                })
+            });
+        },
+        
+        productView: function(productId, productName, price, category) {
+            this.track('product_view', {
+                product_id: productId,
+                product_name: productName,
+                price: price,
+                category: category
+            });
+        },
+        
+        addToCart: function(productId, productName, price, quantity) {
+            this.track('add_to_cart', {
+                product_id: productId,
+                product_name: productName,
+                price: price,
+                quantity: quantity
+            });
+        },
+        
+        removeFromCart: function(productId, productName) {
+            this.track('remove_from_cart', {
+                product_id: productId,
+                product_name: productName
+            });
+        },
+        
+        beginCheckout: function(cartTotal, itemCount) {
+            this.track('begin_checkout', {
+                cart_total: cartTotal,
+                item_count: itemCount
+            });
+        },
+        
+        purchase: function(orderNumber, total, itemCount) {
+            this.track('purchase', {
+                order_number: orderNumber,
+                total: total,
+                item_count: itemCount
+            });
+        },
+        
+        search: function(query) {
+            this.track('search', {
+                query: query
+            });
+        }
+    };
+    
+    function getCSRFToken() {
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    function initAnalytics() {
+        Analytics.enabled = true;
+        Analytics.pageView();
+    }
+    
+    if (consent.analytics) {
+        initAnalytics();
+    }
+    
+    window.initAnalytics = initAnalytics;
+})();
+</script>

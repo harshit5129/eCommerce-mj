@@ -1,60 +1,90 @@
-<div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
+{% load custom_filters %}
+<div class="bg-white rounded-2xl shadow-sm overflow-hidden card-hover border border-gray-100 group">
     <a href="{% url 'product_detail' product.slug %}">
-        <div class="relative h-48 bg-gray-200">
+        <div class="relative h-52 bg-gray-100 overflow-hidden">
             {% if product.primary_image %}
-                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
             {% else %}
-                <div class="w-full h-full flex items-center justify-center text-gray-400">
-                    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                <div class="w-full h-full flex items-center justify-center text-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
+                    <svg class="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
                 </div>
             {% endif %}
             
             {% if product.discount_percentage > 0 %}
-                <span class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                <span class="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
                     -{{ product.discount_percentage }}%
                 </span>
             {% endif %}
             
             {% if product.is_featured %}
-                <span class="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">
+                <span class="absolute top-3 left-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
                     Featured
                 </span>
             {% endif %}
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>
     </a>
     
-    <div class="p-4">
+    <div class="p-5">
+        {% if product.category %}
+            <p class="text-xs font-medium text-primary-600 uppercase tracking-wider mb-2">{{ product.category.name }}</p>
+        {% endif %}
+        
         <a href="{% url 'product_detail' product.slug %}">
-            <h3 class="text-lg font-semibold text-gray-800 hover:text-primary transition truncate">
+            <h3 class="text-lg font-semibold text-gray-800 group-hover:text-primary-600 transition-colors line-clamp-2 mb-2">
                 {{ product.name }}
             </h3>
         </a>
         
-        {% if product.category %}
-            <p class="text-sm text-gray-500 mb-2">{{ product.category.name }}</p>
-        {% endif %}
-        
-        <div class="flex items-center justify-between mb-3">
-            <div>
-                <span class="text-xl font-bold text-primary">${{ product.price|floatformat:2 }}</span>
-                {% if product.compare_price %}
-                    <span class="text-sm text-gray-500 line-through ml-2">${{ product.compare_price|floatformat:2 }}</span>
-                {% endif %}
-            </div>
+        <div class="flex items-baseline gap-2 mb-3">
+            <span class="text-2xl font-bold text-gray-900">{{ product.price|rupee }}</span>
+            {% if product.compare_price %}
+                <span class="text-sm text-gray-400 line-through">{{ product.compare_price|rupee }}</span>
+            {% endif %}
         </div>
         
         {% if product.track_inventory %}
-            <p class="text-sm {% if product.stock_quantity > 0 %}text-green-600{% else %}text-red-600{% endif %} mb-3">
-                {% if product.stock_quantity > 0 %}{{ product.stock_quantity }} in stock{% else %}Out of stock{% endif %}
-            </p>
+            <div class="mb-4">
+                {% if product.stock_quantity > 0 %}
+                    {% if product.stock_quantity <= 5 %}
+                        <p class="text-sm text-orange-600 font-medium flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                            Only {{ product.stock_quantity }} left!
+                        </p>
+                    {% else %}
+                        <p class="text-sm text-green-600 font-medium flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                            In Stock
+                        </p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-sm text-red-600 font-medium flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                        Out of Stock
+                    </p>
+                {% endif %}
+            </div>
         {% endif %}
         
         <button onclick="addToCart('{{ product.id }}', 1)" 
-                class="w-full bg-primary text-white py-2 rounded-lg hover:bg-blue-600 transition {% if not product.in_stock %}opacity-50 cursor-not-allowed{% endif %}"
+                class="w-full py-2.5 rounded-xl font-medium transition-all transform hover:scale-[1.02]
+                {% if product.in_stock %}
+                    bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 shadow-lg shadow-primary-500/25
+                {% else %}
+                    bg-gray-200 text-gray-400 cursor-not-allowed
+                {% endif %}"
                 {% if not product.in_stock %}disabled{% endif %}>
-            {% if product.in_stock %}Add to Cart{% else %}Out of Stock{% endif %}
+            {% if product.in_stock %}
+                <span class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    Add to Cart
+                </span>
+            {% else %}
+                Out of Stock
+            {% endif %}
         </button>
     </div>
 </div>

@@ -1,0 +1,86 @@
+{% extends 'admin/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Reviews - Admin Panel{% endblock %}
+
+{% block admin_content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Product Reviews</h1>
+        <p class="text-gray-500">Manage customer reviews</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Review</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Rating</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for review in reviews %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <p class="font-medium text-gray-800 line-clamp-2">{{ review.title|default:"No title" }}</p>
+                        <p class="text-sm text-gray-500 line-clamp-2">{{ review.review }}</p>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex gap-0.5">
+                            {% for i in "12345"|make_list %}
+                                <svg class="w-4 h-4 {% if forloop.counter <= review.rating %}text-yellow-400{% else %}text-gray-300{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                </svg>
+                            {% endfor %}
+                        </div>
+                        {% if review.is_verified_purchase %}
+                            <span class="text-xs text-green-600 mt-1 block">Verified Purchase</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <p class="text-gray-800">{{ review.user_name }}</p>
+                        <p class="text-xs text-gray-500">{{ review.user_email }}</p>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ review.created_at|date:"M d, Y" }}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-medium
+                            {% if review.is_approved %}bg-green-100 text-green-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                            {% if review.is_approved %}Approved{% else %}Pending{% endif %}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="toggleApprove('{{ review.id }}')" 
+                                class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors
+                                       {% if review.is_approved %}bg-yellow-100 text-yellow-700 hover:bg-yellow-200{% else %}bg-green-100 text-green-700 hover:bg-green-200{% endif %}">
+                            {% if review.is_approved %}Unapprove{% else %}Approve{% endif %}
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">No reviews found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleApprove(reviewId) {
+    $.post('/my-admin/reviews/approve/' + reviewId + '/', function(data) {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

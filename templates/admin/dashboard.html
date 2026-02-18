@@ -1,142 +1,174 @@
 {% extends 'admin/base.html' %}
+{% load custom_filters %}
 
 {% block title %}Dashboard - Admin Panel{% endblock %}
 
 {% block admin_content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+    <p class="text-gray-500">Welcome back! Here's what's happening with your store.</p>
+</div>
+
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <!-- Total Users -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">Total Users</p>
-                <p class="text-3xl font-bold text-primary">{{ total_users }}</p>
+                <p class="text-gray-500 text-sm font-medium">Total Users</p>
+                <p class="text-3xl font-bold text-primary-600 mt-1">{{ total_users }}</p>
             </div>
-            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-users text-primary text-xl"></i>
+            <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center">
+                <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             </div>
         </div>
     </div>
     
-    <!-- Total Products -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">Total Products</p>
-                <p class="text-3xl font-bold text-secondary">{{ total_products }}</p>
+                <p class="text-gray-500 text-sm font-medium">Total Products</p>
+                <p class="text-3xl font-bold text-green-600 mt-1">{{ total_products }}</p>
             </div>
-            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-box text-secondary text-xl"></i>
+            <div class="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center">
+                <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
             </div>
         </div>
     </div>
     
-    <!-- Total Orders -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">Total Orders</p>
-                <p class="text-3xl font-bold text-purple-600">{{ total_orders }}</p>
+                <p class="text-gray-500 text-sm font-medium">Total Orders</p>
+                <p class="text-3xl font-bold text-purple-600 mt-1">{{ total_orders }}</p>
             </div>
-            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-shopping-cart text-purple-600 text-xl"></i>
+            <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center">
+                <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             </div>
         </div>
     </div>
     
-    <!-- Total Revenue -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">Total Revenue</p>
-                <p class="text-3xl font-bold text-green-600">${{ total_revenue|floatformat:2 }}</p>
+                <p class="text-gray-500 text-sm font-medium">Total Revenue</p>
+                <p class="text-3xl font-bold text-emerald-600 mt-1">{{ total_revenue|rupee }}</p>
             </div>
-            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
+            <div class="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Recent Orders -->
-<div class="bg-white rounded-lg shadow p-6 mb-8">
-    <h2 class="text-xl font-bold mb-4">Recent Orders</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Order #</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Customer</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Total</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Status</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Date</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                {% for order in recent_orders %}
-                <tr>
-                    <td class="px-4 py-3 text-sm">{{ order.order_number }}</td>
-                    <td class="px-4 py-3 text-sm">{{ order.user_email }}</td>
-                    <td class="px-4 py-3 text-sm font-semibold">${{ order.total|floatformat:2 }}</td>
-                    <td class="px-4 py-3 text-sm">
-                        <span class="px-2 py-1 rounded text-xs font-semibold
-                            {% if order.order_status == 'pending' %}bg-yellow-100 text-yellow-800
-                            {% elif order.order_status == 'processing' %}bg-blue-100 text-blue-800
-                            {% elif order.order_status == 'shipped' %}bg-purple-100 text-purple-800
-                            {% elif order.order_status == 'delivered' %}bg-green-100 text-green-800
-                            {% elif order.order_status == 'cancelled' %}bg-red-100 text-red-800{% endif %}">
-                            {{ order.order_status|title }}
-                        </span>
-                    </td>
-                    <td class="px-4 py-3 text-sm">{{ order.created_at|date:"M d, Y" }}</td>
-                    <td class="px-4 py-3 text-sm">
-                        <a href="/my-admin/orders/{{ order.order_number }}/" class="text-primary hover:underline">View</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="px-4 py-3 text-center text-gray-500">No orders yet</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-bold text-gray-800">Recent Orders</h2>
+            <a href="{% url 'admin_orders' %}" class="text-primary-600 hover:text-primary-700 text-sm font-medium">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-100">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Order</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Total</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for order in recent_orders %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">
+                            <a href="{% url 'admin_order_detail' order.order_number %}" class="text-primary-600 hover:text-primary-700 font-medium">{{ order.order_number }}</a>
+                        </td>
+                        <td class="px-4 py-3 text-gray-600 text-sm">{{ order.user_email }}</td>
+                        <td class="px-4 py-3 font-medium">{{ order.total|rupee }}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-medium
+                                {% if order.order_status == 'pending' %}bg-yellow-100 text-yellow-700
+                                {% elif order.order_status == 'processing' %}bg-blue-100 text-blue-700
+                                {% elif order.order_status == 'shipped' %}bg-purple-100 text-purple-700
+                                {% elif order.order_status == 'delivered' %}bg-green-100 text-green-700
+                                {% elif order.order_status == 'cancelled' %}bg-red-100 text-red-700{% endif %}">
+                                {{ order.order_status|title }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-4 py-8 text-center text-gray-500">No orders yet</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-bold text-gray-800">Low Stock Products</h2>
+            <a href="{% url 'admin_products' %}" class="text-primary-600 hover:text-primary-700 text-sm font-medium">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-100">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Product</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">SKU</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Stock</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Price</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for product in low_stock %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">
+                            <a href="{% url 'admin_product_edit' product.id %}" class="text-gray-800 hover:text-primary-600 font-medium">{{ product.name }}</a>
+                        </td>
+                        <td class="px-4 py-3 text-gray-500 text-sm">{{ product.sku }}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold">{{ product.stock_quantity }}</span>
+                        </td>
+                        <td class="px-4 py-3 font-medium">{{ product.price|rupee }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-4 py-8 text-center text-gray-500">No low stock products</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<!-- Low Stock Products -->
-<div class="bg-white rounded-lg shadow p-6">
-    <h2 class="text-xl font-bold mb-4">Low Stock Products</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Product</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">SKU</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Stock</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Price</th>
-                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                {% for product in low_stock %}
-                <tr>
-                    <td class="px-4 py-3 text-sm">{{ product.name }}</td>
-                    <td class="px-4 py-3 text-sm">{{ product.sku }}</td>
-                    <td class="px-4 py-3 text-sm">
-                        <span class="text-red-600 font-semibold">{{ product.stock_quantity }}</span>
-                    </td>
-                    <td class="px-4 py-3 text-sm">${{ product.price|floatformat:2 }}</td>
-                    <td class="px-4 py-3 text-sm">
-                        <a href="/my-admin/products/edit/{{ product.id }}/" class="text-primary hover:underline">Edit</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="px-4 py-3 text-center text-gray-500">No low stock products</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <h2 class="text-lg font-bold text-gray-800 mb-6">Quick Actions</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="{% url 'admin_product_create' %}" class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            </div>
+            <span class="font-medium text-gray-700">Add Product</span>
+        </a>
+        <a href="{% url 'admin_orders' %}?status=pending" class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <span class="font-medium text-gray-700">Pending Orders</span>
+        </a>
+        <a href="{% url 'admin_users' %}" class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </div>
+            <span class="font-medium text-gray-700">Manage Users</span>
+        </a>
+        <a href="{% url 'admin_products' %}" class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            </div>
+            <span class="font-medium text-gray-700">All Products</span>
+        </a>
     </div>
 </div>
 {% endblock %}

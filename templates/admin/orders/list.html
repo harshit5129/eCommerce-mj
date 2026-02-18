@@ -1,0 +1,109 @@
+{% extends 'admin/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Orders - Admin Panel{% endblock %}
+
+{% block admin_content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Orders</h1>
+        <p class="text-gray-500">Manage customer orders</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+    <div class="flex flex-wrap gap-2">
+        <a href="{% url 'admin_orders' %}" 
+           class="px-4 py-2 rounded-xl font-medium transition-colors {% if not status_filter %}bg-primary-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            All
+        </a>
+        <a href="?status=pending" 
+           class="px-4 py-2 rounded-xl font-medium transition-colors {% if status_filter == 'pending' %}bg-yellow-500 text-white{% else %}bg-yellow-100 text-yellow-700 hover:bg-yellow-200{% endif %}">
+            Pending
+        </a>
+        <a href="?status=processing" 
+           class="px-4 py-2 rounded-xl font-medium transition-colors {% if status_filter == 'processing' %}bg-blue-500 text-white{% else %}bg-blue-100 text-blue-700 hover:bg-blue-200{% endif %}">
+            Processing
+        </a>
+        <a href="?status=shipped" 
+           class="px-4 py-2 rounded-xl font-medium transition-colors {% if status_filter == 'shipped' %}bg-purple-500 text-white{% else %}bg-purple-100 text-purple-700 hover:bg-purple-200{% endif %}">
+            Shipped
+        </a>
+        <a href="?status=delivered" 
+           class="px-4 py-2 rounded-xl font-medium transition-colors {% if status_filter == 'delivered' %}bg-green-500 text-white{% else %}bg-green-100 text-green-700 hover:bg-green-200{% endif %}">
+            Delivered
+        </a>
+        <a href="?status=cancelled" 
+           class="px-4 py-2 rounded-xl font-medium transition-colors {% if status_filter == 'cancelled' %}bg-red-500 text-white{% else %}bg-red-100 text-red-700 hover:bg-red-200{% endif %}">
+            Cancelled
+        </a>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Items</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for order in orders %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <a href="{% url 'admin_order_detail' order.order_number %}" class="text-primary-600 hover:text-primary-700 font-medium">
+                            {{ order.order_number }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4">
+                        <p class="font-medium text-gray-800">{{ order.shipping_address.full_name|default:"Guest" }}</p>
+                        <p class="text-sm text-gray-500">{{ order.user_email }}</p>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">{{ order.item_count }} item{{ order.item_count|pluralize }}</td>
+                    <td class="px-6 py-4 font-medium text-gray-800">{{ order.total|rupee }}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-medium
+                            {% if order.order_status == 'pending' %}bg-yellow-100 text-yellow-700
+                            {% elif order.order_status == 'processing' %}bg-blue-100 text-blue-700
+                            {% elif order.order_status == 'shipped' %}bg-purple-100 text-purple-700
+                            {% elif order.order_status == 'delivered' %}bg-green-100 text-green-700
+                            {% elif order.order_status == 'cancelled' %}bg-red-100 text-red-700
+                            {% elif order.order_status == 'refunded' %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ order.order_status|title }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-medium
+                            {% if order.payment_status == 'paid' %}bg-green-100 text-green-700
+                            {% elif order.payment_status == 'pending' %}bg-yellow-100 text-yellow-700
+                            {% elif order.payment_status == 'failed' %}bg-red-100 text-red-700
+                            {% elif order.payment_status == 'refunded' %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ order.payment_status|title }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600 text-sm">{{ order.created_at|date:"M d, Y" }}</td>
+                    <td class="px-6 py-4 text-right">
+                        <a href="{% url 'admin_order_detail' order.order_number %}" class="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors inline-flex items-center gap-1">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">No orders found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

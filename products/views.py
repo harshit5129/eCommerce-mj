@@ -4,7 +4,6 @@ from django.views import View
 from django.http import Http404, JsonResponse
 from django.core.cache import cache
 from django.db.models import Q
-from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 from products.models import Product, Category, Wishlist
@@ -25,6 +24,18 @@ def validate_id(id_string):
         return None
 
 
+def get_categories_cached():
+    """Get all active categories with caching."""
+    cache_key = "categories_list"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    categories = list(Category.objects.filter(is_active=True).values('slug', 'name'))
+    cache.set(cache_key, categories, 3600)
+    return categories
+
+
 class HomeView(View):
     """Home page with featured products."""
     
@@ -37,9 +48,21 @@ class HomeView(View):
         if cached_data:
             return render(request, self.template_name, cached_data)
         
-        featured_products = list(Product.objects.filter(is_featured=True, is_active=True)[:8])
-        latest_products = list(Product.objects.filter(is_active=True).order_by('-created_at')[:12])
-        categories = self._get_categories()
+        # Use values() for lighter queries
+        featured_products = list(
+            Product.objects.filter(
+                is_featured=True, 
+                is_active=True
+            ).select_related('category').prefetch_related('images')[:8]
+        )
+        
+        latest_products = list(
+            Product.objects.filter(
+                is_active=True
+            ).select_related('category').prefetch_related('images').order_by('-created_at')[:12]
+        )
+        
+        categories = get_categories_cached()
         
         context = {
             'featured_products': featured_products,
@@ -50,18 +73,6 @@ class HomeView(View):
         cache.set(cache_key, context, 300)
         
         return render(request, self.template_name, context)
-    
-    def _get_categories(self):
-        """Get all active categories."""
-        cache_key = "categories_list"
-        cached = cache.get(cache_key)
-        if cached:
-            return cached
-        
-        categories = Category.objects.filter(is_active=True)
-        result = [{'slug': cat.slug, 'name': cat.name} for cat in categories]
-        cache.set(cache_key, result, 3600)
-        return result
 
 
 class ProductListView(View):
@@ -70,23 +81,23 @@ class ProductListView(View):
     template_name = 'products/product_list.html'
     
     def get(self, request):
-        page = int(request.GET.get('page', 1))
+        page = max(1, int(request.GET.get('page', 1)))
         per_page = 24
-        category_slug = request.GET.get('category')
+        category_slug = request.GET.get('category', '').strip()
         search = request.GET.get('search', '').strip()
         sort = request.GET.get('sort', '-created_at')
-        min_price = request.GET.get('min_price')
-        max_price = request.GET.get('max_price')
+        min_price = request.GET.get('min_price', '').strip()
+        max_price = request.GET.get('max_price', '').strip()
         
-        cache_key = f"products:{category_slug or 'all'}:{search}:{sort}:{min_price}:{max_price}:{page}"
-        cached_data = cache.get(cache_key)
+        # Only cache non-search queries
+        if not search:
+            cache_key = f"products:{category_slug}:{sort}:{min_price}:{max_price}:{page}"
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                cached_data['page'] = page
+                return render(request, self.template_name, cached_data)
         
-        if cached_data and not search:
-            context = cached_data
-            context['page'] = page
-            return render(request, self.template_name, context)
-        
-        products = Product.objects.filter(is_active=True)
+        products = Product.objects.filter(is_active=True).select_related('category')
         
         # Filter by category
         if category_slug:
@@ -119,21 +130,22 @@ class ProductListView(View):
         if sort not in valid_sorts:
             sort = '-created_at'
         
-        try:
-            products = products.order_by(sort)
-        except Exception:
-            products = products.order_by('-created_at')
+        products = products.order_by(sort)
         
-        # Pagination
+        # Use count() before slicing
         total_products = products.count()
         total_pages = math.ceil(total_products / per_page) if total_products > 0 else 1
+        
+        # Ensure page is within bounds
+        page = min(page, total_pages)
         
         start = (page - 1) * per_page
         end = start + per_page
         
+        # Slice after count
         products_list = list(products[start:end])
         
-        categories = HomeView()._get_categories()
+        categories = get_categories_cached()
         
         context = {
             'products': products_list,
@@ -148,6 +160,7 @@ class ProductListView(View):
             'categories': categories,
         }
         
+        # Only cache non-search queries
         if not search:
             cache.set(cache_key, context, 60)
         
@@ -168,38 +181,48 @@ class ProductDetailView(View):
             related_products = cached['related_products']
         else:
             try:
-                product = Product.objects.get(slug=slug, is_active=True)
+                product = Product.objects.select_related('category').prefetch_related('images').get(
+                    slug=slug, 
+                    is_active=True
+                )
             except Product.DoesNotExist:
                 raise Http404("Product not found")
             
-            # Get related products
+            # Get related products with limited fields
             if product.category:
-                related_products = list(Product.objects.filter(
-                    category=product.category,
-                    is_active=True
-                ).exclude(id=product.id)[:4])
+                related_products = list(
+                    Product.objects.filter(
+                        category=product.category,
+                        is_active=True
+                    ).exclude(id=product.id).select_related('category')[:4]
+                )
             else:
-                related_products = list(Product.objects.filter(
-                    is_active=True
-                ).exclude(id=product.id)[:4])
+                related_products = list(
+                    Product.objects.filter(
+                        is_active=True
+                    ).exclude(id=product.id).select_related('category')[:4]
+                )
             
             cache.set(cache_key, {
                 'product': product,
                 'related_products': related_products
             }, 300)
         
-        # Check wishlist status
+        # Check wishlist status - cache this too
         in_wishlist = False
         if request.user.is_authenticated:
-            wishlist = Wishlist.objects.filter(user_id=str(request.user.id)).first()
-            if wishlist and wishlist.has_product(product.id):
-                in_wishlist = True
+            wishlist_cache_key = f"wishlist_user:{request.user.id}:product:{product.id}"
+            in_wishlist = cache.get(wishlist_cache_key)
+            if in_wishlist is None:
+                try:
+                    wishlist = Wishlist.objects.filter(user_id=str(request.user.id)).first()
+                    in_wishlist = wishlist and wishlist.has_product(product.id)
+                    cache.set(wishlist_cache_key, in_wishlist, 60)
+                except Exception:
+                    in_wishlist = False
         
         # Get all images
-        all_images = []
-        images = product.images.all()
-        if images:
-            all_images = [img.image.url for img in images if img.image]
+        all_images = [img.image.url for img in product.images.all() if img.image]
         
         context = {
             'product': product,
@@ -224,7 +247,7 @@ class WishlistView(View):
         
         products = []
         if wishlist:
-            products = list(wishlist.products.filter(is_active=True))
+            products = list(wishlist.products.filter(is_active=True).select_related('category'))
         
         context = {
             'products': products,
@@ -246,7 +269,7 @@ class WishlistToggleView(View):
             return JsonResponse({'error': 'Invalid product ID'}, status=400)
         
         try:
-            product = Product.objects.get(id=product_id)
+            product = Product.objects.get(id=product_id, is_active=True)
         except Product.DoesNotExist:
             return JsonResponse({'error': 'Product not found'}, status=404)
         
@@ -258,20 +281,25 @@ class WishlistToggleView(View):
             
             if wishlist.has_product(product.id):
                 wishlist.remove_product(product)
-                return JsonResponse({
-                    'success': True,
-                    'action': 'removed',
-                    'message': 'Removed from wishlist',
-                    'count': wishlist.products.count()
-                })
+                count = wishlist.products.count()
+                action = 'removed'
+                message = 'Removed from wishlist'
             else:
                 wishlist.add_product(product)
-                return JsonResponse({
-                    'success': True,
-                    'action': 'added',
-                    'message': 'Added to wishlist',
-                    'count': wishlist.products.count()
-                })
+                count = wishlist.products.count()
+                action = 'added'
+                message = 'Added to wishlist'
+            
+            # Invalidate caches
+            cache.delete(f'wishlist_count:{request.user.id}')
+            cache.delete(f"wishlist_user:{request.user.id}:product:{product.id}")
+            
+            return JsonResponse({
+                'success': True,
+                'action': action,
+                'message': message,
+                'count': count
+            })
                 
         except Exception as e:
             logger.error(f"Wishlist toggle error: {e}", exc_info=True)
@@ -297,6 +325,11 @@ class WishlistRemoveView(View):
                 try:
                     product = Product.objects.get(id=product_id)
                     wishlist.remove_product(product)
+                    
+                    # Invalidate caches
+                    cache.delete(f'wishlist_count:{request.user.id}')
+                    cache.delete(f"wishlist_user:{request.user.id}:product:{product.id}")
+                    
                     messages.success(request, 'Product removed from wishlist.')
                 except Product.DoesNotExist:
                     messages.error(request, 'Product not found.')
@@ -305,12 +338,3 @@ class WishlistRemoveView(View):
             messages.error(request, 'Error removing product from wishlist.')
         
         return redirect('wishlist')
-
-
-def get_wishlist_count(request):
-    """Get wishlist count for the current user."""
-    if request.user.is_authenticated:
-        wishlist = Wishlist.objects.filter(user_id=str(request.user.id)).first()
-        if wishlist:
-            return wishlist.products.count()
-    return 0

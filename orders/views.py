@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 from django.db import transaction
 from django.db.models import F
+from django.core.cache import cache
 from decimal import Decimal, ROUND_HALF_UP
 import json
 import uuid
@@ -32,8 +33,8 @@ def validate_id(id_string):
         return None
 
 
-def parse_json_body(request, max_size=1024*1024):
-    """Safely parse JSON request body with size limit."""
+def parse_json_body(request, max_size=1024*512):
+    """Safely parse JSON request body with size limit (512KB max)."""
     if len(request.body) > max_size:
         raise ValueError("Request body too large")
     
@@ -47,7 +48,7 @@ def sanitize_email_header(value):
     """Prevent email header injection."""
     if not value:
         return ''
-    return re.sub(r'[\r\n]', '', str(value))
+    return re.sub(r'[\r\n]', '', str(value))[:200]
 
 
 def calculate_order_totals(cart_items, coupon_code=None, user_email=None):
@@ -55,21 +56,22 @@ def calculate_order_totals(cart_items, coupon_code=None, user_email=None):
     Calculate order totals server-side with Decimal precision.
     Returns tuple: (subtotal, shipping, tax, discount, total)
     """
-    # Calculate subtotal
     subtotal = Decimal('0')
     for item in cart_items:
-        price = Decimal(str(item.get('product_price', 0)))
-        qty = int(item.get('quantity', 1))
-        subtotal += price * qty
+        try:
+            price = Decimal(str(item.get('product_price', 0)))
+            qty = int(item.get('quantity', 1))
+            subtotal += price * qty
+        except (ValueError, TypeError):
+            continue
     
-    # Shipping
+    # Free shipping over ₹4000
     shipping = Decimal('0') if subtotal >= Decimal('4000') else Decimal('99')
     
     # Tax (18% GST)
-    tax_rate = Decimal('0.18')
-    tax = (subtotal * tax_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    tax = (subtotal * Decimal('0.18')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
-    # Calculate discount server-side only
+    # Calculate discount
     discount = Decimal('0')
     if coupon_code and user_email:
         try:
@@ -78,14 +80,11 @@ def calculate_order_totals(cart_items, coupon_code=None, user_email=None):
             if can_use and coupon.is_valid:
                 discount_val = coupon.calculate_discount(float(subtotal))
                 discount = Decimal(str(discount_val)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                # Ensure discount doesn't exceed subtotal
                 discount = min(discount, subtotal)
         except Coupon.DoesNotExist:
             pass
     
-    # Total
-    total = subtotal + shipping + tax - discount
-    total = total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    total = (subtotal + shipping + tax - discount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
     return subtotal, shipping, tax, discount, total
 
@@ -93,9 +92,12 @@ def calculate_order_totals(cart_items, coupon_code=None, user_email=None):
 def send_order_confirmation_email(order):
     """Send order confirmation email to customer."""
     try:
+        # Use select_related/prefetch_related to avoid N+1
+        items = order.items.all()
+        
         items_list = "\n".join([
             f"  - {sanitize_email_header(item.product_name)} x {item.quantity} = ₹{item.price * item.quantity:,.2f}"
-            for item in order.items.all()
+            for item in items
         ])
         
         first_name = sanitize_email_header(order.shipping_address.get('first_name', ''))
@@ -126,14 +128,11 @@ SHIPPING ADDRESS
 {sanitize_email_header(order.shipping_address.get('first_name', ''))} {sanitize_email_header(order.shipping_address.get('last_name', ''))}
 {sanitize_email_header(order.shipping_address.get('street', ''))}
 {sanitize_email_header(order.shipping_address.get('city', ''))}, {sanitize_email_header(order.shipping_address.get('state', ''))} {sanitize_email_header(order.shipping_address.get('postal_code', ''))}
-{sanitize_email_header(order.shipping_address.get('country', ''))}
 Phone: {sanitize_email_header(order.shipping_address.get('phone', ''))}
 
 PAYMENT METHOD
 --------------
 Online Payment (Razorpay)
-
-You can track your order status at: {settings.SITE_URL}/orders/
 
 Thank you for shopping with us!
 
@@ -149,7 +148,7 @@ Best regards,
             fail_silently=True,
         )
     except Exception as e:
-        logger.error(f"Failed to send order confirmation email: {e}", exc_info=True)
+        logger.error(f"Failed to send order confirmation email: {e}")
 
 
 def send_order_cancellation_email(order):
@@ -165,12 +164,9 @@ ORDER DETAILS
 -------------
 Order Number: {order.order_number}
 Cancelled On: {order.cancelled_at.strftime('%B %d, %Y at %I:%M %p')}
-
 Total Amount: ₹{order.total:,.2f}
 
 If your payment was already processed, a refund will be issued within 5-7 business days.
-
-If you have any questions, please contact our support team.
 
 Best regards,
 {settings.SITE_NAME} Team
@@ -184,7 +180,32 @@ Best regards,
             fail_silently=True,
         )
     except Exception as e:
-        logger.error(f"Failed to send cancellation email: {e}", exc_info=True)
+        logger.error(f"Failed to send cancellation email: {e}")
+
+
+def validate_cart_items(cart):
+    """Validate all cart items and return products dict."""
+    errors = []
+    products = {}
+    
+    for item in cart:
+        product_id = validate_id(item.get('product_id'))
+        if not product_id:
+            errors.append('Invalid product in cart')
+            continue
+        
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+            quantity = int(item.get('quantity', 1))
+            
+            if product.track_inventory and product.stock_quantity < quantity:
+                errors.append(f'Insufficient stock for {product.name}. Only {product.stock_quantity} available.')
+            else:
+                products[product_id] = product
+        except Product.DoesNotExist:
+            errors.append(f'Product no longer available')
+    
+    return products, errors
 
 
 @method_decorator(csrf_protect, name='dispatch')
@@ -224,17 +245,18 @@ class CheckoutView(View):
         
         try:
             data = parse_json_body(request)
-            
             address = data.get('shipping_address', {})
             
             # Validate required fields
             required_fields = ['first_name', 'last_name', 'email', 'street', 'city', 'state', 'postal_code']
-            for field in required_fields:
-                if not address.get(field):
-                    return JsonResponse({'error': f'{field.replace("_", " ").title()} is required'}, status=400)
+            missing = [f for f in required_fields if not address.get(f)]
+            if missing:
+                return JsonResponse({
+                    'error': f'{missing[0].replace("_", " ").title()} is required'
+                }, status=400)
             
             # Get user info
-            user_id = request.user.id if request.user.is_authenticated else None
+            user_id = str(request.user.id) if request.user.is_authenticated else 'guest'
             user_email = request.user.email if request.user.is_authenticated else address.get('email')
             
             if not user_email:
@@ -245,42 +267,26 @@ class CheckoutView(View):
             if not re.match(email_pattern, user_email):
                 return JsonResponse({'error': 'Invalid email format'}, status=400)
             
-            # Calculate totals server-side
+            # Calculate totals
             coupon_code = data.get('coupon_code')
             subtotal, shipping, tax, discount, total = calculate_order_totals(
                 cart, coupon_code=coupon_code, user_email=user_email
             )
             
-            # Validate cart items and deduct inventory atomically
+            # Validate cart items
+            products, errors = validate_cart_items(cart)
+            if errors:
+                return JsonResponse({'error': errors[0]}, status=400)
+            
+            # Generate order number
+            order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+            
             with transaction.atomic():
-                # Validate all items first
-                for item in cart:
-                    product_id = validate_id(item.get('product_id'))
-                    if not product_id:
-                        return JsonResponse({'error': 'Invalid product in cart'}, status=400)
-                    
-                    try:
-                        product = Product.objects.get(id=product_id, is_active=True)
-                    except Product.DoesNotExist:
-                        return JsonResponse({'error': f'Product no longer available'}, status=400)
-                    
-                    quantity = int(item.get('quantity', 1))
-                    
-                    if product.track_inventory:
-                        # Check stock availability
-                        if product.stock_quantity < quantity:
-                            return JsonResponse({
-                                'error': f'Insufficient stock for {product.name}. Only {product.stock_quantity} available.'
-                            }, status=400)
-                
-                # Generate order number
-                order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-                
                 # Create order
                 order = Order.objects.create(
                     order_number=order_number,
-                    user_id=str(user_id) if user_id else 'guest',
-                    user_email=user_email,
+                    user_id=user_id,
+                    user_email=user_email[:100],
                     subtotal=float(subtotal),
                     shipping_cost=float(shipping),
                     tax=float(tax),
@@ -297,7 +303,7 @@ class CheckoutView(View):
                         'postal_code': address.get('postal_code', '')[:20],
                         'country': address.get('country', 'India')[:50],
                     },
-                    payment_method=data.get('payment_method', 'cash'),
+                    payment_method='razorpay',
                     notes=data.get('notes', '')[:500],
                 )
                 
@@ -305,27 +311,28 @@ class CheckoutView(View):
                 for item in cart:
                     product_id = int(item.get('product_id'))
                     quantity = int(item.get('quantity', 1))
-                    product = Product.objects.get(id=product_id)
+                    product = products.get(product_id)
+                    
+                    if not product:
+                        continue
                     
                     # Deduct inventory atomically
                     if product.track_inventory:
                         Product.objects.filter(id=product_id).update(
                             stock_quantity=F('stock_quantity') - quantity
                         )
-                        # Refresh product to get updated stock
-                        product.refresh_from_db()
                     
                     OrderItem.objects.create(
                         order=order,
                         product_id=product_id,
-                        product_name=item.get('product_name', product.name),
-                        product_sku=product.sku or '',
-                        product_image=item.get('product_image') or '',
+                        product_name=item.get('product_name', product.name)[:255],
+                        product_sku=product.sku[:100] if product.sku else '',
+                        product_image=item.get('product_image', '')[:500],
                         price=float(item.get('product_price', product.price)),
                         quantity=quantity,
                     )
                 
-                # Record coupon usage if applicable
+                # Record coupon usage
                 if coupon_code and discount > 0:
                     try:
                         coupon = Coupon.objects.get(code=coupon_code.upper(), is_active=True)
@@ -335,18 +342,20 @@ class CheckoutView(View):
                             order_number=order_number,
                             discount_amount=float(discount),
                         )
-                        coupon.used_count += 1
-                        coupon.save()
+                        coupon.used_count = F('used_count') + 1
+                        coupon.save(update_fields=['used_count'])
                     except Coupon.DoesNotExist:
                         pass
             
-            # For online payment (Razorpay), keep cart and coupon in session
-            # They will be cleared after successful payment verification
             # Store order number in session for payment
             request.session['pending_order_number'] = order_number
             request.session.modified = True
             
-            logger.info(f"Order created (pending payment): {order_number} by {user_email}")
+            # Invalidate product caches
+            for product_id in products.keys():
+                cache.delete(f"product_detail:{products[product_id].slug}")
+            
+            logger.info(f"Order created: {order_number} by {user_email}")
             
             return JsonResponse({
                 'success': True,
@@ -355,11 +364,10 @@ class CheckoutView(View):
             })
         
         except ValueError as e:
-            logger.warning(f"Checkout validation error: {e}")
             return JsonResponse({'error': str(e)}, status=400)
         except Exception as e:
             logger.error(f"Order creation failed: {e}", exc_info=True)
-            return JsonResponse({'error': 'An error occurred while processing your order. Please try again.'}, status=500)
+            return JsonResponse({'error': 'An error occurred. Please try again.'}, status=500)
 
 
 class OrderSuccessView(View):
@@ -374,14 +382,12 @@ class OrderSuccessView(View):
             return redirect('home')
         
         try:
-            order = Order.objects.get(order_number=order_number)
+            order = Order.objects.prefetch_related('items').get(order_number=order_number)
         except Order.DoesNotExist:
             messages.error(request, 'Order not found.')
             return redirect('home')
         
-        # For online payments, check if payment is pending
-        # If so, redirect to payment pending page
-        if order.payment_method != 'cash' and order.payment_status == 'pending':
+        if order.payment_status == 'pending':
             messages.warning(request, 'Payment is pending for this order.')
         
         return render(request, self.template_name, {'order': order})
@@ -397,7 +403,10 @@ class OrderHistoryView(View):
             messages.warning(request, 'Please login to view your orders.')
             return redirect('login')
         
-        orders = Order.objects.filter(user_id=str(request.user.id)).order_by('-created_at')
+        # Use select_related and only fetch needed fields
+        orders = Order.objects.filter(
+            user_id=str(request.user.id)
+        ).order_by('-created_at')[:50]
         
         return render(request, self.template_name, {'orders': orders})
 
@@ -413,7 +422,10 @@ class OrderDetailView(View):
             return redirect('login')
         
         try:
-            order = Order.objects.get(order_number=order_number, user_id=str(request.user.id))
+            order = Order.objects.prefetch_related('items').get(
+                order_number=order_number, 
+                user_id=str(request.user.id)
+            )
         except Order.DoesNotExist:
             messages.error(request, 'Order not found.')
             return redirect('order_history')
@@ -438,40 +450,38 @@ def cancel_order(request):
             return JsonResponse({'error': 'Order number is required'}, status=400)
         
         try:
-            order = Order.objects.get(order_number=order_number, user_id=str(request.user.id))
+            order = Order.objects.prefetch_related('items').get(
+                order_number=order_number, 
+                user_id=str(request.user.id)
+            )
         except Order.DoesNotExist:
-            return JsonResponse({'error': 'Order not found or you are not authorized'}, status=404)
+            return JsonResponse({'error': 'Order not found'}, status=404)
         
         if order.order_status not in ['pending', 'processing']:
             return JsonResponse({
-                'error': f'Order cannot be cancelled. Current status: {order.order_status.title()}. Only pending and processing orders can be cancelled.'
+                'error': f'Cannot cancel order with status: {order.order_status.title()}'
             }, status=400)
         
-        # Restore inventory
         with transaction.atomic():
+            # Restore inventory
             for item in order.items.all():
                 try:
-                    product = Product.objects.get(id=item.product_id)
-                    if product.track_inventory:
-                        Product.objects.filter(id=item.product_id).update(
-                            stock_quantity=F('stock_quantity') + item.quantity
-                        )
-                except Product.DoesNotExist:
+                    Product.objects.filter(id=item.product_id, track_inventory=True).update(
+                        stock_quantity=F('stock_quantity') + item.quantity
+                    )
+                except Exception:
                     pass
             
             order.order_status = 'cancelled'
             order.cancelled_at = datetime.utcnow()
-            order.save()
+            order.save(update_fields=['order_status', 'cancelled_at'])
         
         send_order_cancellation_email(order)
         
-        logger.info(f"Order cancelled: {order_number} by user {request.user.id}")
+        logger.info(f"Order cancelled: {order_number}")
         
-        return JsonResponse({
-            'success': True,
-            'message': 'Order cancelled successfully',
-        })
+        return JsonResponse({'success': True, 'message': 'Order cancelled successfully'})
     
     except Exception as e:
         logger.error(f"Order cancellation failed: {e}", exc_info=True)
-        return JsonResponse({'error': 'An error occurred while cancelling your order.'}, status=500)
+        return JsonResponse({'error': 'An error occurred'}, status=500)

@@ -1,48 +1,26 @@
-from django.shortcuts import get_object_or_404
-from products.models import Product
+from django.core.cache import cache
+from products.models import Product, Wishlist
 
 
 def cart(request):
     """
     Context processor to make cart available in all templates.
-    Retrieves cart from session or database for authenticated users.
+    Optimized to avoid database queries on every request.
     """
-    cart_items = []
-    cart_total = 0
-    cart_count = 0
+    cart_items = request.session.get('cart', [])
     
-    # Get cart from session
-    if request.session.get('cart'):
-        cart_items = request.session.get('cart', [])
-        cart_count = sum(item.get('quantity', 1) for item in cart_items)
-        cart_total = sum(
-            item.get('product_price', 0) * item.get('quantity', 1) 
-            for item in cart_items
-        )
+    if not cart_items:
+        return {
+            'cart_items': [],
+            'cart_total': 0,
+            'cart_count': 0,
+        }
     
-    # If user is authenticated, also check database cart
-    if request.user.is_authenticated:
-        try:
-            from users.models import CartItem
-            db_cart_items = CartItem.objects.filter(user=request.user).select_related()
-            
-            if db_cart_items.exists():
-                # Use database cart items
-                cart_items = []
-                for item in db_cart_items:
-                    cart_items.append({
-                        'product_id': item.product_id,
-                        'product_slug': None,  # Will need to fetch
-                        'product_name': item.product_name,
-                        'product_price': float(item.product_price),
-                        'product_image': item.product_image,
-                        'quantity': item.quantity,
-                    })
-                
-                cart_count = sum(item['quantity'] for item in cart_items)
-                cart_total = sum(item['product_price'] * item['quantity'] for item in cart_items)
-        except Exception:
-            pass
+    cart_count = sum(item.get('quantity', 1) for item in cart_items)
+    cart_total = sum(
+        item.get('product_price', 0) * item.get('quantity', 1) 
+        for item in cart_items
+    )
     
     return {
         'cart_items': cart_items,
@@ -54,21 +32,27 @@ def cart(request):
 def wishlist(request):
     """
     Context processor to make wishlist count available in all templates.
+    Uses caching to avoid database queries on every request.
     """
-    wishlist_count = 0
+    if not request.user.is_authenticated:
+        return {'wishlist_count': 0}
     
-    if request.user.is_authenticated:
-        try:
-            from products.models import Wishlist
-            wishlist_obj = Wishlist.objects.filter(
-                user_id=str(request.user.id)
-            ).first()
-            
-            if wishlist_obj:
-                wishlist_count = wishlist_obj.products.count()
-        except Exception:
-            pass
+    user_id = str(request.user.id)
+    cache_key = f'wishlist_count:{user_id}'
     
-    return {
-        'wishlist_count': wishlist_count,
-    }
+    # Try to get from cache first
+    cached_count = cache.get(cache_key)
+    if cached_count is not None:
+        return {'wishlist_count': cached_count}
+    
+    # Query database only if not in cache
+    try:
+        wishlist_obj = Wishlist.objects.filter(user_id=user_id).first()
+        count = wishlist_obj.products.count() if wishlist_obj else 0
+    except Exception:
+        count = 0
+    
+    # Cache for 60 seconds
+    cache.set(cache_key, count, 60)
+    
+    return {'wishlist_count': count}

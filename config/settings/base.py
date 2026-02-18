@@ -47,6 +47,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.MongoDBConnectionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -71,7 +72,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database configuration - use SQLite for Django's auth models
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -110,38 +110,65 @@ MONGODB_NAME = os.getenv('MONGODB_NAME', 'ecomm_db')
 
 MONGODB_AVAILABLE = False
 
-try:
-    if MONGODB_URI:
-        mongoengine.connect(
-            host=MONGODB_URI,
-            alias='default',
-            serverSelectionTimeoutMS=5000,
-            uuidRepresentation='standard'
-        )
-        db_name = MONGODB_URI.split('/')[-1].split('?')[0] or MONGODB_NAME
-        print(f"✓ MongoDB Atlas connected successfully to database: {db_name}")
-    else:
-        mongoengine.connect(
-            db=MONGODB_NAME,
-            host=MONGODB_HOST,
-            port=MONGODB_PORT,
-            alias='default',
-            serverSelectionTimeoutMS=3000
-        )
-        print(f"✓ MongoDB connected successfully to: {MONGODB_HOST}:{MONGODB_PORT}/{MONGODB_NAME}")
+def connect_mongodb():
+    """Connect to MongoDB with proper error handling."""
+    global MONGODB_AVAILABLE
     
-    MONGODB_AVAILABLE = True
-    
-except Exception as e:
-    print(f"⚠ Warning: Could not connect to MongoDB: {e}")
-    print("  The application will run with limited functionality.")
-    print("  Please check your MongoDB connection settings.")
-    MONGODB_AVAILABLE = False
+    try:
+        if MONGODB_URI:
+            mongoengine.connect(
+                host=MONGODB_URI,
+                alias='default',
+                serverSelectionTimeoutMS=10000,
+                socketTimeoutMS=30000,
+                connectTimeoutMS=10000,
+                retryWrites=True,
+                w='majority',
+                uuidRepresentation='standard',
+                maxPoolSize=100,
+                minPoolSize=10,
+                maxIdleTimeMS=60000,
+                waitQueueTimeoutMS=10000,
+            )
+            db_name = MONGODB_URI.split('/')[-1].split('?')[0] or MONGODB_NAME
+            print(f"✓ MongoDB Atlas connected successfully to database: {db_name}")
+        else:
+            mongoengine.connect(
+                db=MONGODB_NAME,
+                host=MONGODB_HOST,
+                port=MONGODB_PORT,
+                alias='default',
+                serverSelectionTimeoutMS=5000,
+            )
+            print(f"✓ MongoDB connected successfully to: {MONGODB_HOST}:{MONGODB_PORT}/{MONGODB_NAME}")
+        
+        MONGODB_AVAILABLE = True
+        return True
+        
+    except Exception as e:
+        print(f"⚠ Warning: Could not connect to MongoDB: {e}")
+        print("  The application will run with limited functionality.")
+        MONGODB_AVAILABLE = False
+        return False
 
-# Custom User Model (Django auth)
+connect_mongodb()
+
+def get_mongodb_connection():
+    """Get or reconnect to MongoDB."""
+    global MONGODB_AVAILABLE
+    
+    try:
+        conn = mongoengine.get_connection()
+        if conn:
+            return conn
+    except:
+        pass
+    
+    MONGODB_AVAILABLE = connect_mongodb()
+    return MONGODB_AVAILABLE
+
 AUTH_USER_MODEL = 'users.DjangoUser'
 
-# REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -161,23 +188,18 @@ REST_FRAMEWORK = {
     ),
 }
 
-# JWT Settings
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', SECRET_KEY)
 JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
 JWT_ACCESS_TOKEN_LIFETIME = int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME', 60))
 JWT_REFRESH_TOKEN_LIFETIME = int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME', 1440))
 
-# CORS
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8000').split(',')
 
-# Rate Limiting
 RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', 60))
 
-# Site Settings
 SITE_NAME = os.getenv('SITE_NAME', 'E-Commerce Store')
 SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
 
-# Email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
@@ -186,10 +208,8 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@example.com')
 
-# Password Reset Settings
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', 3600))
 
-# Caching
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -197,6 +217,5 @@ CACHES = {
     }
 }
 
-# Rate Limiting Settings
 RATE_LIMIT_REQUESTS = int(os.getenv('RATE_LIMIT_REQUESTS', '100'))
 RATE_LIMIT_PERIOD = int(os.getenv('RATE_LIMIT_PERIOD', '60'))

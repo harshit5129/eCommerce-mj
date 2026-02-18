@@ -3,8 +3,41 @@ import logging
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.conf import settings
+import mongoengine
 
 logger = logging.getLogger(__name__)
+
+
+class MongoDBConnectionMiddleware:
+    """
+    Middleware to ensure MongoDB connection is alive before each request.
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+    
+    def __call__(self, request):
+        self._ensure_mongodb_connection()
+        response = self.get_response(request)
+        return response
+    
+    def _ensure_mongodb_connection(self):
+        """Check and reconnect to MongoDB if needed."""
+        if not settings.MONGODB_AVAILABLE:
+            return
+        
+        try:
+            conn = mongoengine.get_connection()
+            if conn:
+                return
+        except:
+            pass
+        
+        try:
+            from config.settings.base import connect_mongodb
+            connect_mongodb()
+        except Exception as e:
+            logger.error(f"Failed to reconnect to MongoDB: {e}")
 
 
 class RateLimitMiddleware:

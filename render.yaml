@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: ecomm
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DB_NAME
+        value: ecomm_db
+      - key: DB_USER
+        value: postgres
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ecomm-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: ecomm-db
+          property: host
+      - key: DB_PORT
+        value: 5432
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+
+databases:
+  - name: ecomm-db
+    databaseName: ecomm_db
+    user: postgres
+    plan: free

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.views import View
 from django.http import JsonResponse
 from django.contrib import messages
+from datetime import datetime
 import json
 
 
@@ -61,6 +62,3 @@ class CookiePreferencesView(View):
         
         messages.success(request, 'Cookie preferences updated successfully!')
         return redirect('cookie_preferences')
-
-
-from datetime import datetime

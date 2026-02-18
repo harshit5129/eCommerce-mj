@@ -62,3 +62,24 @@ def discount_amount(price, compare_price):
         return float(compare_price) - float(price)
     except (ValueError, TypeError):
         return 0
+
+
+@register.filter
+def status_display(value):
+    """Convert status code to display text."""
+    status_map = {
+        'pending': 'Pending',
+        'processing': 'Processing',
+        'shipped': 'Shipped',
+        'delivered': 'Delivered',
+        'cancelled': 'Cancelled',
+        'refunded': 'Refunded',
+        'paid': 'Paid',
+        'failed': 'Failed',
+        'active': 'Active',
+        'draft': 'Draft',
+        'archived': 'Archived',
+        'out_of_stock': 'Out of Stock',
+        'coming_soon': 'Coming Soon',
+    }
+    return status_map.get(value, value.replace('_', ' ').title() if value else '')

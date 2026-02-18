@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
 from products.models import Product, Category, ProductImage
 from users.mongo_models import User
+from offers.models import Coupon, LimitedOffer
+from datetime import datetime, timedelta
 
 
 class Command(BaseCommand):
@@ -113,11 +115,79 @@ class Command(BaseCommand):
             },
         ]
         
+        created_products = []
         for data in products_data:
             product = Product(**data)
             product.save()
+            created_products.append(product)
             self.stdout.write(f'Created: {product.name}')
         
+        # Create sample coupons
+        coupons_data = [
+            {
+                'code': 'WELCOME10',
+                'description': '10% off for new customers',
+                'discount_type': 'percentage',
+                'discount_value': 10,
+                'min_order_value': 1000,
+                'max_discount': 500,
+                'usage_limit': 1000,
+                'per_user_limit': 1,
+                'valid_until': datetime.utcnow() + timedelta(days=365),
+                'is_active': True,
+                'is_first_order_only': True,
+            },
+            {
+                'code': 'SAVE500',
+                'description': '₹500 off on orders above ₹5000',
+                'discount_type': 'fixed',
+                'discount_value': 500,
+                'min_order_value': 5000,
+                'usage_limit': 500,
+                'per_user_limit': 2,
+                'valid_until': datetime.utcnow() + timedelta(days=90),
+                'is_active': True,
+                'is_first_order_only': False,
+            },
+            {
+                'code': 'FLASH20',
+                'description': '20% off flash sale',
+                'discount_type': 'percentage',
+                'discount_value': 20,
+                'min_order_value': 2000,
+                'max_discount': 2000,
+                'usage_limit': 100,
+                'per_user_limit': 1,
+                'valid_until': datetime.utcnow() + timedelta(days=7),
+                'is_active': True,
+                'is_first_order_only': False,
+            },
+        ]
+        
+        for coupon_data in coupons_data:
+            coupon = Coupon(**coupon_data)
+            coupon.save()
+            self.stdout.write(f'Created coupon: {coupon.code}')
+        
+        # Create sample limited time offer
+        offer = LimitedOffer(
+            name='Diwali Flash Sale',
+            slug='diwali-flash-sale',
+            description='Exclusive Diwali discounts on electronics and fashion!',
+            offer_type='flash_sale',
+            product_ids=[str(p.id) for p in created_products[:4]],
+            discount_type='percentage',
+            discount_value=15,
+            starts_at=datetime.utcnow(),
+            ends_at=datetime.utcnow() + timedelta(days=7),
+            banner_text='🎉 Diwali Sale - Up to 15% OFF!',
+            is_active=True,
+            show_countdown=True,
+        )
+        offer.save()
+        self.stdout.write(f'Created offer: {offer.name}')
+        
+        # Create admin user
         admin_user = User(
             email='admin@example.com',
             username='admin',
@@ -131,3 +201,4 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS('Sample data created successfully!'))
         self.stdout.write('Admin credentials: admin@example.com / admin123')
+        self.stdout.write('Coupons: WELCOME10, SAVE500, FLASH20')

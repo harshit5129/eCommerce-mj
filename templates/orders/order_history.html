@@ -54,7 +54,7 @@
                                     {% elif order.order_status == 'cancelled' %}
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
                                     {% endif %}
-                                    {{ order.get_order_status_display|default:order.order_status|title }}
+                                    {{ order.order_status|status_display }}
                                 </span>
                                 
                                 <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
@@ -68,7 +68,7 @@
                                     {% elif order.payment_status == 'pending' %}
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
                                     {% endif %}
-                                    {{ order.get_payment_status_display|default:order.payment_status|title }}
+                                    {{ order.payment_status|status_display }}
                                 </span>
                             </div>
                             

@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from orders.models import Order, OrderItem, ShippingAddress
 from orders.serializers import OrderSerializer, CreateOrderSerializer
 from products.models import Product
+from mongoengine.errors import DoesNotExist, ValidationError
 
 
 class OrderListAPIView(APIView):
@@ -35,14 +36,13 @@ class OrderDetailAPIView(APIView):
     def get(self, request, order_number):
         user_id = str(request.user.id)
         
-        try:
-            order = Order.objects.get(order_number=order_number, user_id=user_id)
-            return Response(OrderSerializer(order).data)
-        except Order.DoesNotExist:
+        order = Order.objects(order_number=order_number, user_id=user_id).first()
+        if not order:
             return Response(
                 {'error': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        return Response(OrderSerializer(order).data)
 
 
 class CreateOrderAPIView(APIView):
@@ -148,9 +148,8 @@ class CancelOrderAPIView(APIView):
         
         user_id = str(request.user.id)
         
-        try:
-            order = Order.objects.get(order_number=order_number, user_id=user_id)
-        except Order.DoesNotExist:
+        order = Order.objects(order_number=order_number, user_id=user_id).first()
+        if not order:
             return Response(
                 {'error': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND

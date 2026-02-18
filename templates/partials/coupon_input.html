@@ -62,7 +62,7 @@ function applyCoupon() {
     btn.disabled = true;
     
     $.ajax({
-        url: '/api/coupon/apply/',
+        url: '/api/offers/coupon/apply/',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({
@@ -96,7 +96,7 @@ function applyCoupon() {
 
 function removeCoupon() {
     $.ajax({
-        url: '/api/coupon/remove/',
+        url: '/api/offers/coupon/remove/',
         method: 'POST',
         success: function() {
             document.getElementById('coupon-input-area').classList.remove('hidden');

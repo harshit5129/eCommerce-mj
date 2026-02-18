@@ -5,13 +5,150 @@ from django.views import View
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils.crypto import get_random_string
 import jwt
 import os
-from django.conf import settings
 
 from users.mongo_models import User as MongoUser
 from users.models import DjangoUser
 from users.forms import UserRegistrationForm, UserLoginForm, UserProfileForm
+
+
+class PasswordResetView(View):
+    """Password reset request view."""
+    
+    template_name = 'users/password_reset.html'
+    
+    def get(self, request):
+        return render(request, self.template_name)
+    
+    def post(self, request):
+        email = request.POST.get('email', '').strip()
+        
+        if not email:
+            messages.error(request, 'Please enter your email address.')
+            return render(request, self.template_name)
+        
+        try:
+            mongo_user = MongoUser.objects(email=email).first()
+            if mongo_user:
+                token = generate_token(mongo_user)
+                reset_url = f"{settings.SITE_URL}/accounts/password/reset/confirm/{token}/"
+                
+                send_mail(
+                    subject=f'Password Reset - {settings.SITE_NAME}',
+                    message=f'''
+Hello {mongo_user.first_name or mongo_user.username},
+
+You requested a password reset for your account.
+
+Click the link below to reset your password:
+{reset_url}
+
+This link will expire in 1 hour.
+
+If you didn't request this, please ignore this email.
+
+Thanks,
+{settings.SITE_NAME} Team
+''',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    fail_silently=True,
+                )
+            
+            messages.success(request, 'If an account exists with that email, you will receive a password reset link.')
+            return redirect('password_reset_done')
+            
+        except Exception as e:
+            messages.error(request, 'An error occurred. Please try again.')
+            return render(request, self.template_name)
+
+
+class PasswordResetDoneView(View):
+    """Password reset email sent confirmation."""
+    
+    template_name = 'users/password_reset_done.html'
+    
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+class PasswordResetConfirmView(View):
+    """Password reset confirmation view."""
+    
+    template_name = 'users/password_reset_confirm.html'
+    
+    def get(self, request, token):
+        try:
+            payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+            user_id = payload.get('user_id')
+            
+            mongo_user = MongoUser.objects(id=user_id).first()
+            if not mongo_user:
+                messages.error(request, 'Invalid reset link.')
+                return redirect('password_reset')
+            
+            return render(request, self.template_name, {'token': token, 'valid': True})
+            
+        except jwt.ExpiredSignatureError:
+            messages.error(request, 'Reset link has expired. Please request a new one.')
+            return redirect('password_reset')
+        except jwt.InvalidTokenError:
+            messages.error(request, 'Invalid reset link.')
+            return redirect('password_reset')
+    
+    def post(self, request, token):
+        try:
+            payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+            user_id = payload.get('user_id')
+            
+            mongo_user = MongoUser.objects(id=user_id).first()
+            if not mongo_user:
+                messages.error(request, 'Invalid reset link.')
+                return redirect('password_reset')
+            
+            password = request.POST.get('password', '')
+            confirm_password = request.POST.get('confirm_password', '')
+            
+            if not password or len(password) < 8:
+                messages.error(request, 'Password must be at least 8 characters.')
+                return render(request, self.template_name, {'token': token, 'valid': True})
+            
+            if password != confirm_password:
+                messages.error(request, 'Passwords do not match.')
+                return render(request, self.template_name, {'token': token, 'valid': True})
+            
+            mongo_user.set_password(password)
+            mongo_user.save()
+            
+            try:
+                django_user = DjangoUser.objects.get(email=mongo_user.email)
+                django_user.set_password(password)
+                django_user.save()
+            except DjangoUser.DoesNotExist:
+                pass
+            
+            messages.success(request, 'Your password has been reset successfully. Please login.')
+            return redirect('password_reset_complete')
+            
+        except jwt.ExpiredSignatureError:
+            messages.error(request, 'Reset link has expired. Please request a new one.')
+            return redirect('password_reset')
+        except jwt.InvalidTokenError:
+            messages.error(request, 'Invalid reset link.')
+            return redirect('password_reset')
+
+
+class PasswordResetCompleteView(View):
+    """Password reset complete view."""
+    
+    template_name = 'users/password_reset_complete.html'
+    
+    def get(self, request):
+        return render(request, self.template_name)
 
 
 def generate_token(user):

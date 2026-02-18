@@ -50,6 +50,7 @@ class AnalyticsEvent:
             return False
 
 
+@csrf_exempt
 def track_page_view(request):
     """Track a page view."""
     if request.method == 'POST':
@@ -66,6 +67,7 @@ def track_page_view(request):
     return JsonResponse({'error': 'Invalid method'}, status=405)
 
 
+@csrf_exempt
 def track_event(request):
     """Track a custom event."""
     if request.method == 'POST':

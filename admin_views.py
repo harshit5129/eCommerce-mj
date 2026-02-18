@@ -569,6 +569,72 @@ class AdminCouponCreateView(View):
             return render(request, self.template_name, {'coupon': None, 'action': 'Create'})
 
 
+class AdminCouponEditView(View):
+    """Edit coupon."""
+    
+    template_name = 'admin/coupons/form.html'
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request, coupon_id):
+        from bson import ObjectId
+        try:
+            coupon = Coupon.objects.get(id=ObjectId(coupon_id))
+            return render(request, self.template_name, {'coupon': coupon, 'action': 'Edit'})
+        except:
+            messages.error(request, 'Coupon not found')
+            return redirect('admin_coupons')
+    
+    def post(self, request, coupon_id):
+        from bson import ObjectId
+        try:
+            coupon = Coupon.objects.get(id=ObjectId(coupon_id))
+            
+            valid_until = request.POST.get('valid_until')
+            if valid_until:
+                coupon.valid_until = datetime.strptime(valid_until, '%Y-%m-%dT%H:%M')
+            
+            coupon.code = request.POST.get('code', '').upper()
+            coupon.description = request.POST.get('description', '')
+            coupon.discount_type = request.POST.get('discount_type', 'percentage')
+            coupon.discount_value = float(request.POST.get('discount_value', 0))
+            coupon.min_order_value = float(request.POST.get('min_order_value', 0))
+            coupon.max_discount = float(request.POST.get('max_discount', 0))
+            coupon.usage_limit = int(request.POST.get('usage_limit', 0))
+            coupon.per_user_limit = int(request.POST.get('per_user_limit', 1))
+            coupon.is_active = request.POST.get('is_active') == 'on'
+            coupon.is_first_order_only = request.POST.get('is_first_order_only') == 'on'
+            
+            coupon.save()
+            messages.success(request, 'Coupon updated successfully')
+            return redirect('admin_coupons')
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+            return redirect('admin_coupons')
+
+
+class AdminCouponDeleteView(View):
+    """Delete coupon."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request, coupon_id):
+        from bson import ObjectId
+        try:
+            coupon = Coupon.objects.get(id=ObjectId(coupon_id))
+            coupon.delete()
+            messages.success(request, 'Coupon deleted successfully')
+        except:
+            messages.error(request, 'Coupon not found')
+        return redirect('admin_coupons')
+
+
 class AdminOfferListView(View):
     """List all limited time offers."""
     
@@ -638,6 +704,78 @@ class AdminOfferCreateView(View):
         except Exception as e:
             messages.error(request, f'Error: {str(e)}')
             return redirect('admin_offers')
+
+
+class AdminOfferEditView(View):
+    """Edit offer."""
+    
+    template_name = 'admin/offers/form.html'
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request, offer_id):
+        from bson import ObjectId
+        try:
+            offer = LimitedOffer.objects.get(id=ObjectId(offer_id))
+            products = Product.objects(is_active=True)[:50]
+            return render(request, self.template_name, {'offer': offer, 'action': 'Edit', 'products': products})
+        except:
+            messages.error(request, 'Offer not found')
+            return redirect('admin_offers')
+    
+    def post(self, request, offer_id):
+        from bson import ObjectId
+        try:
+            offer = LimitedOffer.objects.get(id=ObjectId(offer_id))
+            
+            starts_at = request.POST.get('starts_at')
+            ends_at = request.POST.get('ends_at')
+            
+            if starts_at:
+                offer.starts_at = datetime.strptime(starts_at, '%Y-%m-%dT%H:%M')
+            if ends_at:
+                offer.ends_at = datetime.strptime(ends_at, '%Y-%m-%dT%H:%M')
+            
+            offer.name = request.POST.get('name')
+            if request.POST.get('slug'):
+                offer.slug = request.POST.get('slug')
+            offer.description = request.POST.get('description', '')
+            offer.offer_type = request.POST.get('offer_type', 'flash_sale')
+            offer.product_ids = request.POST.getlist('product_ids')
+            offer.discount_type = request.POST.get('discount_type', 'percentage')
+            offer.discount_value = float(request.POST.get('discount_value', 0))
+            offer.banner_text = request.POST.get('banner_text', '')
+            offer.is_active = request.POST.get('is_active') == 'on'
+            offer.show_countdown = request.POST.get('show_countdown') == 'on'
+            
+            offer.save()
+            messages.success(request, 'Offer updated successfully')
+            return redirect('admin_offers')
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+            return redirect('admin_offers')
+
+
+class AdminOfferDeleteView(View):
+    """Delete offer."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request, offer_id):
+        from bson import ObjectId
+        try:
+            offer = LimitedOffer.objects.get(id=ObjectId(offer_id))
+            offer.delete()
+            messages.success(request, 'Offer deleted successfully')
+        except:
+            messages.error(request, 'Offer not found')
+        return redirect('admin_offers')
 
 
 class AdminReviewListView(View):

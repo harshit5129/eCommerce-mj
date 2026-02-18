@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.mongo_models import User
 from users.serializers import UserSerializer, RegisterSerializer, LoginSerializer
+from mongoengine.errors import DoesNotExist, ValidationError
 import jwt
 from django.conf import settings
 
@@ -56,9 +57,8 @@ class LoginAPIView(generics.GenericAPIView):
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
         
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        user = User.objects(email=email).first()
+        if not user:
             return Response(
                 {'error': 'Invalid credentials'},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -98,15 +98,19 @@ class ProfileAPIView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     
     def get_object(self):
-        return User.objects.get(id=self.request.user.id)
+        return User.objects(id=self.request.user.id).first()
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        if not instance:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
     
     def update(self, request, *args, **kwargs):
         user = self.get_object()
+        if not user:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         
         user.first_name = request.data.get('first_name', user.first_name)
         user.last_name = request.data.get('last_name', user.last_name)

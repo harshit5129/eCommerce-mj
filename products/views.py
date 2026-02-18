@@ -1,10 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.views import View
-from django.http import Http404
-from products.models import Product, Category
+from django.http import Http404, JsonResponse
+from products.models import Product, Category, Wishlist
 import math
 import re
+import json
 
 
 class HomeView(View):
@@ -78,7 +79,7 @@ class ProductListView(View):
             except ValueError:
                 pass
         
-        valid_sorts = ['-created_at', 'created_at', 'price', '-price', 'name', '-name', '-price']
+        valid_sorts = ['-created_at', 'created_at', 'price', '-price', 'name', '-name']
         if sort not in valid_sorts:
             sort = '-created_at'
         
@@ -136,8 +137,118 @@ class ProductDetailView(View):
             id__ne=product.id
         )[:4] if product.category else Product.objects(is_active=True, id__ne=product.id)[:4]
         
+        in_wishlist = False
+        user_id = request.session.get('user_id')
+        user_email = request.session.get('user_email')
+        
+        if user_id and user_email:
+            wishlist = Wishlist.objects(user_id=str(user_id)).first()
+            if wishlist and wishlist.has_product(str(product.id)):
+                in_wishlist = True
+        
         context = {
             'product': product,
             'related_products': related_products,
+            'in_wishlist': in_wishlist,
         }
         return render(request, self.template_name, context)
+
+
+class WishlistView(View):
+    """Wishlist page."""
+    
+    template_name = 'products/wishlist.html'
+    
+    def get(self, request):
+        user_id = request.session.get('user_id')
+        user_email = request.session.get('user_email')
+        
+        if not user_id or not user_email:
+            messages.warning(request, 'Please login to view your wishlist.')
+            return redirect('login')
+        
+        wishlist = Wishlist.objects(user_id=str(user_id)).first()
+        
+        products = []
+        if wishlist:
+            products = wishlist.products
+        
+        context = {
+            'products': products,
+            'wishlist': wishlist,
+        }
+        return render(request, self.template_name, context)
+
+
+class WishlistToggleView(View):
+    """Toggle product in wishlist (add/remove)."""
+    
+    def post(self, request, product_id):
+        user_id = request.session.get('user_id')
+        user_email = request.session.get('user_email')
+        
+        if not user_id or not user_email:
+            return JsonResponse({'error': 'Please login to add items to wishlist'}, status=401)
+        
+        try:
+            from bson import ObjectId
+            product = Product.objects(id=ObjectId(product_id)).first()
+            if not product:
+                return JsonResponse({'error': 'Product not found'}, status=404)
+            
+            wishlist, created = Wishlist.objects.get_or_create(
+                user_id=str(user_id),
+                defaults={'user_email': user_email}
+            )
+            
+            if wishlist.has_product(str(product_id)):
+                wishlist.remove_product(str(product_id))
+                return JsonResponse({
+                    'success': True,
+                    'action': 'removed',
+                    'message': 'Removed from wishlist',
+                    'count': len(wishlist.product_ids)
+                })
+            else:
+                wishlist.add_product(str(product_id))
+                return JsonResponse({
+                    'success': True,
+                    'action': 'added',
+                    'message': 'Added to wishlist',
+                    'count': len(wishlist.product_ids)
+                })
+                
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+class WishlistRemoveView(View):
+    """Remove product from wishlist."""
+    
+    def post(self, request, product_id):
+        user_id = request.session.get('user_id')
+        user_email = request.session.get('user_email')
+        
+        if not user_id or not user_email:
+            messages.warning(request, 'Please login to manage your wishlist.')
+            return redirect('login')
+        
+        try:
+            wishlist = Wishlist.objects(user_id=str(user_id)).first()
+            if wishlist:
+                wishlist.remove_product(str(product_id))
+                messages.success(request, 'Product removed from wishlist.')
+        except Exception:
+            messages.error(request, 'Error removing product from wishlist.')
+        
+        return redirect('wishlist')
+
+
+def get_wishlist_count(request):
+    """Get wishlist count for the current user."""
+    user_id = request.session.get('user_id')
+    if user_id:
+        wishlist = Wishlist.objects(user_id=str(user_id)).first()
+        if wishlist:
+            return len(wishlist.product_ids)
+    return 0

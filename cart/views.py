@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.views import View
 from django.http import JsonResponse, Http404
 from products.models import Product
+from mongoengine.errors import DoesNotExist, ValidationError
 import json
 
 
@@ -91,7 +92,7 @@ def add_to_cart(request):
             'cart_count': cart_count,
         })
     
-    except Product.DoesNotExist:
+    except (DoesNotExist, ValidationError):
         return JsonResponse({'error': 'Product not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -142,7 +143,7 @@ def update_cart_item(request):
             'item_total': item_total,
         })
     
-    except Product.DoesNotExist:
+    except (DoesNotExist, ValidationError):
         return JsonResponse({'error': 'Product not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

@@ -1,5 +1,5 @@
 {% load custom_filters %}
-<div class="bg-white rounded-2xl shadow-sm overflow-hidden card-hover border border-gray-100 group">
+<div class="bg-white rounded-2xl shadow-sm overflow-hidden card-hover border border-gray-100 group relative">
     <a href="{% url 'product_detail' product.slug %}">
         <div class="relative h-52 bg-gray-100 overflow-hidden">
             {% if product.primary_image %}
@@ -27,6 +27,12 @@
             <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>
     </a>
+    
+    <button onclick="toggleWishlist('{{ product.id }}')" class="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full shadow-lg hover:bg-red-50 hover:text-red-500 transition-all z-10 {% if product.discount_percentage > 0 %}mt-10{% endif %}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+        </svg>
+    </button>
     
     <div class="p-5">
         {% if product.category %}
@@ -88,3 +94,30 @@
         </button>
     </div>
 </div>
+
+<script>
+function toggleWishlist(productId) {
+    $.ajax({
+        url: '/wishlist/toggle/' + productId + '/',
+        method: 'POST',
+        headers: {'X-CSRFToken': getCSRFToken()},
+        success: function(response) {
+            if (response.success) {
+                if (typeof Cart !== 'undefined') {
+                    Cart.showNotification(response.message, 'success');
+                }
+            }
+        },
+        error: function(xhr) {
+            if (xhr.status === 401) {
+                window.location.href = '/accounts/login/';
+            }
+        }
+    });
+}
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+}
+</script>

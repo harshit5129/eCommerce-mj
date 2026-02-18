@@ -24,11 +24,9 @@ def cart(request):
             from bson import ObjectId
             user_id = request.session.get('user_id')
             
-            # Try to get user by MongoDB ObjectId
             try:
                 user = User.objects.get(id=ObjectId(user_id))
             except:
-                # Fallback: try to get by email
                 user_email = request.session.get('user_email')
                 if user_email:
                     user = User.objects.get(email=user_email)
@@ -48,4 +46,25 @@ def cart(request):
         'cart_items': cart_items,
         'cart_total': cart_total,
         'cart_count': cart_count,
+    }
+
+
+def wishlist(request):
+    """
+    Context processor to make wishlist count available in all templates.
+    """
+    wishlist_count = 0
+    
+    user_id = request.session.get('user_id')
+    if user_id:
+        try:
+            from products.models import Wishlist
+            wishlist_obj = Wishlist.objects(user_id=str(user_id)).first()
+            if wishlist_obj:
+                wishlist_count = len(wishlist_obj.product_ids)
+        except Exception:
+            pass
+    
+    return {
+        'wishlist_count': wishlist_count,
     }

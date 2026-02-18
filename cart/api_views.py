@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from products.models import Product
+from mongoengine.errors import DoesNotExist, ValidationError
 
 
 class CartAPIView(APIView):
@@ -55,9 +56,8 @@ class AddToCartAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        try:
-            product = Product.objects.get(id=product_id, is_active=True)
-        except Product.DoesNotExist:
+        product = Product.objects(id=product_id, is_active=True).first()
+        if not product:
             return Response(
                 {'error': 'Product not found'},
                 status=status.HTTP_404_NOT_FOUND
@@ -123,9 +123,8 @@ class UpdateCartItemAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        try:
-            product = Product.objects.get(id=product_id, is_active=True)
-        except Product.DoesNotExist:
+        product = Product.objects(id=product_id, is_active=True).first()
+        if not product:
             return Response(
                 {'error': 'Product not found'},
                 status=status.HTTP_404_NOT_FOUND

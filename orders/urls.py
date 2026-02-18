@@ -7,7 +7,7 @@ from orders.views import (
 urlpatterns = [
     path('checkout/', CheckoutView.as_view(), name='checkout'),
     path('success/', OrderSuccessView.as_view(), name='order_success'),
+    path('cancel/', cancel_order, name='cancel_order'),
     path('history/', OrderHistoryView.as_view(), name='order_history'),
     path('<str:order_number>/', OrderDetailView.as_view(), name='order_detail'),
-    path('cancel/', cancel_order, name='cancel_order'),
 ]

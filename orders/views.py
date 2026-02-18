@@ -3,12 +3,103 @@ from django.contrib import messages
 from django.views import View
 from django.http import JsonResponse
 from django.conf import settings
+from django.core.mail import send_mail
 import json
 import uuid
 from datetime import datetime
 
 from orders.models import Order, OrderItem, ShippingAddress
 from products.models import Product
+
+
+def send_order_confirmation_email(order):
+    """Send order confirmation email to customer."""
+    items_list = "\n".join([
+        f"  - {item.product_name} x {item.quantity} = ₹{item.price * item.quantity:,.2f}"
+        for item in order.items
+    ])
+    
+    message = f'''
+Dear {order.shipping_address.first_name or 'Customer'},
+
+Thank you for your order! Your order has been successfully placed.
+
+ORDER DETAILS
+-------------
+Order Number: {order.order_number}
+Order Date: {order.created_at.strftime('%B %d, %Y at %I:%M %p')}
+
+ITEMS ORDERED:
+{items_list}
+
+ORDER SUMMARY
+-------------
+Subtotal: ₹{order.subtotal:,.2f}
+Shipping: {'FREE' if order.shipping_cost == 0 else f'₹{order.shipping_cost:,.2f}'}
+Tax (18% GST): ₹{order.tax:,.2f}
+{f'Discount: -₹{order.discount:,.2f}' if order.discount > 0 else ''}
+-----------------------------------
+TOTAL: ₹{order.total:,.2f}
+
+SHIPPING ADDRESS
+----------------
+{order.shipping_address.first_name} {order.shipping_address.last_name}
+{order.shipping_address.street}
+{order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postal_code}
+{order.shipping_address.country}
+Phone: {order.shipping_address.phone}
+
+PAYMENT METHOD
+--------------
+{'Cash on Delivery' if order.payment_method == 'cash' else order.payment_method.title()}
+
+You can track your order status at: {settings.SITE_URL}/orders/
+
+Thank you for shopping with us!
+
+Best regards,
+{settings.SITE_NAME} Team
+'''
+    
+    send_mail(
+        subject=f'Order Confirmed - {order.order_number} | {settings.SITE_NAME}',
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[order.user_email],
+        fail_silently=True,
+    )
+
+
+def send_order_cancellation_email(order):
+    """Send order cancellation email to customer."""
+    message = f'''
+Dear {order.shipping_address.first_name or 'Customer'},
+
+Your order has been cancelled as requested.
+
+ORDER DETAILS
+-------------
+Order Number: {order.order_number}
+Cancelled On: {order.cancelled_at.strftime('%B %d, %Y at %I:%M %p')}
+
+Total Amount: ₹{order.total:,.2f}
+
+If you paid online, a refund will be processed within 5-7 business days.
+For Cash on Delivery orders, no payment was collected.
+
+If you have any questions, please contact our support team.
+
+Best regards,
+{settings.SITE_NAME} Team
+'''
+    
+    send_mail(
+        subject=f'Order Cancelled - {order.order_number} | {settings.SITE_NAME}',
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[order.user_email],
+        fail_silently=True,
+    )
 
 
 class CheckoutView(View):
@@ -127,6 +218,8 @@ class CheckoutView(View):
             )
             order.save()
             
+            send_order_confirmation_email(order)
+            
             request.session['cart'] = []
             request.session.modified = True
             
@@ -234,6 +327,8 @@ def cancel_order(request):
         order.order_status = 'cancelled'
         order.cancelled_at = datetime.utcnow()
         order.save()
+        
+        send_order_cancellation_email(order)
         
         return JsonResponse({
             'success': True,

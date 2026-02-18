@@ -7,6 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from products.models import Product
 from products.serializers import ProductListSerializer, ProductDetailSerializer
+from mongoengine.errors import DoesNotExist, ValidationError
 
 
 class ProductListAPIView(generics.ListAPIView):
@@ -54,13 +55,11 @@ class ProductDetailAPIView(generics.RetrieveAPIView):
     
     def get_object(self):
         pk_or_slug = self.kwargs['pk']
-        try:
-            return Product.objects.get(pk=pk_or_slug, is_active=True)
-        except Product.DoesNotExist:
-            try:
-                return Product.objects.get(slug=pk_or_slug, is_active=True)
-            except Product.DoesNotExist:
-                return None
+        product = Product.objects(id=pk_or_slug, is_active=True).first()
+        if product:
+            return product
+        product = Product.objects(slug=pk_or_slug, is_active=True).first()
+        return product
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()

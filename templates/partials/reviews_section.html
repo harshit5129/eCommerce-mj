@@ -123,9 +123,10 @@
 <script>
 const productId = '{{ product.id }}';
 let currentRating = 0;
+window.cartTotal = {{ cart_total|default:0 }};
 
 function loadReviews() {
-    $.get('/api/reviews/' + productId + '/', function(data) {
+    $.get('/api/offers/reviews/' + productId + '/', function(data) {
         if (data.total > 0) {
             $('#avg-rating').text(data.average_rating.toFixed(1));
             $('#total-reviews').text(data.total + ' review' + (data.total > 1 ? 's' : ''));
@@ -197,21 +198,13 @@ function setRating(rating) {
 }
 
 function openReviewModal() {
-    $.get('/api/reviews/check-login/', function(data) {
-        if (data.logged_in) {
-            $('#review-modal').removeClass('hidden');
-        } else {
-            alert('Please login to write a review');
-            window.location.href = '/accounts/login/?next=' + window.location.pathname;
-        }
-    }).fail(function() {
-        if (!document.cookie.includes('sessionid')) {
-            alert('Please login to write a review');
-            window.location.href = '/accounts/login/?next=' + window.location.pathname;
-        } else {
-            $('#review-modal').removeClass('hidden');
-        }
-    });
+    var userEmail = '{{ request.session.user_email|default:'' }}';
+    if (!userEmail) {
+        alert('Please login to write a review');
+        window.location.href = '/accounts/login/?next=' + window.location.pathname;
+        return;
+    }
+    $('#review-modal').removeClass('hidden');
 }
 
 function closeReviewModal() {
@@ -219,7 +212,7 @@ function closeReviewModal() {
 }
 
 function markHelpful(reviewId) {
-    $.post('/api/review/helpful/', JSON.stringify({ review_id: reviewId }), function(data) {
+    $.post('/api/offers/review/helpful/', JSON.stringify({ review_id: reviewId }), function(data) {
         if (data.success) {
             loadReviews();
         }
@@ -247,7 +240,7 @@ $('#review-form').on('submit', function(e) {
         cons: $('input[name="cons"]').val().split(',').map(s => s.trim()).filter(s => s)
     };
     
-    $.post('/api/review/submit/', JSON.stringify(formData), function(data) {
+    $.post('/api/offers/review/submit/', JSON.stringify(formData), function(data) {
         if (data.success) {
             alert(data.message + (data.is_verified ? ' (Verified Purchase)' : ''));
             closeReviewModal();

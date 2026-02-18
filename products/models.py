@@ -144,3 +144,48 @@ class Product(Document):
             data['images'] = [img.to_dict() for img in self.images]
             data['primary_image'] = self.primary_image.to_dict() if self.primary_image else None
         return data
+
+
+class Wishlist(Document):
+    """Wishlist model for saving favorite products."""
+    
+    user_id = StringField(required=True)
+    user_email = StringField(required=True)
+    product_ids = ListField(StringField(), default=list)
+    
+    meta = {
+        'collection': 'wishlists',
+        'indexes': [
+            'user_id',
+            'user_email',
+        ]
+    }
+    
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+    
+    def save(self, *args, **kwargs):
+        self.updated_at = datetime.utcnow()
+        return super().save(*args, **kwargs)
+    
+    def add_product(self, product_id):
+        if product_id not in self.product_ids:
+            self.product_ids.append(product_id)
+            self.save()
+    
+    def remove_product(self, product_id):
+        if product_id in self.product_ids:
+            self.product_ids.remove(product_id)
+            self.save()
+    
+    def has_product(self, product_id):
+        return product_id in self.product_ids
+    
+    @property
+    def products(self):
+        from bson import ObjectId
+        product_ids = [ObjectId(pid) for pid in self.product_ids if pid]
+        return Product.objects(id__in=product_ids)
+    
+    def __str__(self):
+        return f"Wishlist for {self.user_email}"

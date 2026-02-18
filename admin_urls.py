@@ -4,8 +4,8 @@ from admin_views import (
     AdminUserListView, AdminUserCreateView, AdminUserEditView, AdminUserDeleteView,
     AdminProductListView, AdminProductCreateView, AdminProductEditView, AdminProductDeleteView, AdminProductStatusUpdateView,
     AdminOrderListView, AdminOrderDetailView, AdminOrderUpdateView,
-    AdminCouponListView, AdminCouponCreateView,
-    AdminOfferListView, AdminOfferCreateView,
+    AdminCouponListView, AdminCouponCreateView, AdminCouponEditView, AdminCouponDeleteView,
+    AdminOfferListView, AdminOfferCreateView, AdminOfferEditView, AdminOfferDeleteView,
     AdminReviewListView, AdminReviewApproveView
 )
 from analytics.views import AnalyticsDashboardView
@@ -32,9 +32,13 @@ urlpatterns = [
     
     path('coupons/', AdminCouponListView.as_view(), name='admin_coupons'),
     path('coupons/create/', AdminCouponCreateView.as_view(), name='admin_coupon_create'),
+    path('coupons/edit/<str:coupon_id>/', AdminCouponEditView.as_view(), name='admin_coupon_edit'),
+    path('coupons/delete/<str:coupon_id>/', AdminCouponDeleteView.as_view(), name='admin_coupon_delete'),
     
     path('offers/', AdminOfferListView.as_view(), name='admin_offers'),
     path('offers/create/', AdminOfferCreateView.as_view(), name='admin_offer_create'),
+    path('offers/edit/<str:offer_id>/', AdminOfferEditView.as_view(), name='admin_offer_edit'),
+    path('offers/delete/<str:offer_id>/', AdminOfferDeleteView.as_view(), name='admin_offer_delete'),
     
     path('reviews/', AdminReviewListView.as_view(), name='admin_reviews'),
     path('reviews/approve/<str:review_id>/', AdminReviewApproveView.as_view(), name='admin_review_approve'),

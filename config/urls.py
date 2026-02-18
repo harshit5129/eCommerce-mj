@@ -15,10 +15,10 @@ urlpatterns = [
     path('api/auth/', include('users.api_urls')),
     path('api/cart/', include('cart.api_urls')),
     path('api/orders/', include('orders.api_urls')),
+    path('api/offers/', include('offers.urls')),
     path('cookies/', include('cookies.urls')),
     path('my-admin/analytics/', include('analytics.urls')),
     path('', include('pages.urls')),
-    path('api/', include('offers.urls')),
 ]
 
 if settings.DEBUG:

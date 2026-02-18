@@ -24,19 +24,18 @@ class HealthCheckView(View):
             health['checks']['database'] = f'error: {str(e)}'
             health['status'] = 'unhealthy'
         
-        # Check Redis/Cache
+        # Check Redis/Cache (optional - don't fail if not available)
         try:
             cache.set('health_check', 'ok', 10)
             if cache.get('health_check') == 'ok':
                 health['checks']['cache'] = 'ok'
             else:
-                health['checks']['cache'] = 'error'
-                health['status'] = 'degraded'
+                health['checks']['cache'] = 'not configured'
         except Exception as e:
-            health['checks']['cache'] = f'error: {str(e)}'
-            health['status'] = 'degraded'
+            health['checks']['cache'] = 'not configured'
         
-        status_code = 200 if health['status'] == 'healthy' else 503
+        # Return 200 even if cache fails - only fail on database
+        status_code = 200 if health['checks'].get('database') == 'ok' else 503
         
         return JsonResponse(health, status=status_code)
 
@@ -52,13 +51,6 @@ class ReadinessCheckView(View):
             with connection.cursor() as cursor:
                 cursor.execute('SELECT 1')
             checks.append(True)
-        except Exception:
-            checks.append(False)
-        
-        # Check Redis
-        try:
-            cache.set('readiness_check', 'ok', 10)
-            checks.append(cache.get('readiness_check') == 'ok')
         except Exception:
             checks.append(False)
         

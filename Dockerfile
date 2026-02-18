@@ -23,11 +23,14 @@ RUN python manage.py collectstatic --noinput || true
 RUN addgroup --system appgroup && adduser --system --group appuser \
     && chown -R appuser:appgroup /app
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')" || exit 1
 
-CMD ["gunicorn", "config.wsgi:application", "-c", "gunicorn.conf.py"]
+ENTRYPOINT ["/entrypoint.sh"]

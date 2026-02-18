@@ -1,53 +1,53 @@
 {% load custom_filters %}
 <div id="product-reviews" class="mt-12">
     <div class="flex items-center justify-between mb-8">
-        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Customer Reviews</h2>
+        <h2 class="text-2xl font-bold text-gray-800">Customer Reviews</h2>
         <button onclick="openReviewModal()" class="px-4 py-2 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors">
             Write a Review
         </button>
     </div>
     
-    <div id="reviews-summary" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8">
+    <div id="reviews-summary" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
         <div class="flex flex-col md:flex-row gap-8">
             <div class="text-center md:border-r md:border-gray-200 md:pr-8">
-                <div id="avg-rating" class="text-5xl font-bold text-gray-800 dark:text-white">0.0</div>
+                <div id="avg-rating" class="text-5xl font-bold text-gray-800">0.0</div>
                 <div id="avg-stars" class="flex justify-center gap-1 my-2"></div>
-                <p id="total-reviews" class="text-gray-500 dark:text-gray-400">0 reviews</p>
+                <p id="total-reviews" class="text-gray-500">0 reviews</p>
             </div>
             <div class="flex-1">
                 <div id="rating-bars" class="space-y-2">
                     <div class="flex items-center gap-3">
-                        <span class="text-sm text-gray-600 dark:text-gray-400 w-8">5 ★</span>
-                        <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
+                        <span class="text-sm text-gray-600 w-8">5 ★</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-yellow-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                         <span class="text-sm text-gray-500 w-8">0</span>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-sm text-gray-600 dark:text-gray-400 w-8">4 ★</span>
-                        <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
+                        <span class="text-sm text-gray-600 w-8">4 ★</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-yellow-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                         <span class="text-sm text-gray-500 w-8">0</span>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-sm text-gray-600 dark:text-gray-400 w-8">3 ★</span>
-                        <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
+                        <span class="text-sm text-gray-600 w-8">3 ★</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-yellow-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                         <span class="text-sm text-gray-500 w-8">0</span>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-sm text-gray-600 dark:text-gray-400 w-8">2 ★</span>
-                        <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
+                        <span class="text-sm text-gray-600 w-8">2 ★</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-yellow-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                         <span class="text-sm text-gray-500 w-8">0</span>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-sm text-gray-600 dark:text-gray-400 w-8">1 ★</span>
-                        <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                            <div class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
+                        <span class="text-sm text-gray-600 w-8">1 ★</span>
+                        <div class="flex-1 bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-yellow-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                         <span class="text-sm text-gray-500 w-8">0</span>
                     </div>
@@ -57,16 +57,16 @@
     </div>
     
     <div id="reviews-list" class="space-y-6">
-        <p class="text-center text-gray-500 dark:text-gray-400 py-8">No reviews yet. Be the first to review!</p>
+        <p class="text-center text-gray-500 py-8">Loading reviews...</p>
     </div>
 </div>
 
 <div id="review-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-200">
             <div class="flex items-center justify-between">
-                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Write a Review</h3>
-                <button onclick="closeReviewModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <h3 class="text-xl font-bold text-gray-800">Write a Review</h3>
+                <button onclick="closeReviewModal()" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -75,8 +75,9 @@
         </div>
         
         <form id="review-form" class="p-6 space-y-6">
+            {% csrf_token %}
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rating *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Rating *</label>
                 <div id="star-rating" class="flex gap-2">
                     <button type="button" onclick="setRating(1)" class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors">★</button>
                     <button type="button" onclick="setRating(2)" class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors">★</button>
@@ -88,28 +89,28 @@
             </div>
             
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Review Title</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Review Title</label>
                 <input type="text" name="title" placeholder="Summarize your experience"
-                       class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                       class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent">
             </div>
             
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Review *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Your Review *</label>
                 <textarea name="review" rows="4" required
                           placeholder="Share your experience with this product..."
-                          class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"></textarea>
+                          class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"></textarea>
             </div>
             
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pros</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Pros</label>
                     <input type="text" name="pros" placeholder="Good quality, Fast delivery"
-                           class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                           class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cons</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cons</label>
                     <input type="text" name="cons" placeholder="Pricey, No warranty"
-                           class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                           class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                 </div>
             </div>
             
@@ -123,70 +124,85 @@
 <script>
 const productId = '{{ product.id }}';
 let currentRating = 0;
-window.cartTotal = {{ cart_total|default:0 }};
+
+function getCSRFToken() {
+    const cookieValue = document.cookie.match(/csrftoken=([^;]+)/);
+    return cookieValue ? cookieValue[1] : '';
+}
 
 function loadReviews() {
-    $.get('/api/offers/reviews/' + productId + '/', function(data) {
-        if (data.total > 0) {
-            $('#avg-rating').text(data.average_rating.toFixed(1));
-            $('#total-reviews').text(data.total + ' review' + (data.total > 1 ? 's' : ''));
-            
-            let starsHtml = '';
-            for (let i = 1; i <= 5; i++) {
-                if (i <= Math.round(data.average_rating)) {
-                    starsHtml += '<svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>';
-                } else {
-                    starsHtml += '<svg class="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>';
-                }
+    fetch('/api/offers/reviews/' + productId + '/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                $('#reviews-list').html('<p class="text-center text-gray-500 py-8">Error loading reviews</p>');
+                return;
             }
-            $('#avg-stars').html(starsHtml);
             
-            const bars = $('#rating-bars > div');
-            [5, 4, 3, 2, 1].forEach((rating, idx) => {
-                const count = data.rating_distribution[rating] || 0;
-                const pct = data.total > 0 ? (count / data.total * 100) : 0;
-                $(bars[idx]).find('div > div').css('width', pct + '%');
-                $(bars[idx]).find('span:last').text(count);
-            });
-        }
-        
-        if (data.reviews && data.reviews.length > 0) {
-            let html = '';
-            data.reviews.forEach(function(r) {
-                html += `
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                    <div class="flex items-start justify-between mb-4">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <div class="w-10 h-10 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-                                    <span class="text-primary-600 dark:text-primary-400 font-semibold">${r.user_name.charAt(0).toUpperCase()}</span>
+            if (data.total > 0) {
+                $('#avg-rating').text(data.average_rating.toFixed(1));
+                $('#total-reviews').text(data.total + ' review' + (data.total > 1 ? 's' : ''));
+                
+                let starsHtml = '';
+                for (let i = 1; i <= 5; i++) {
+                    if (i <= Math.round(data.average_rating)) {
+                        starsHtml += '<svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>';
+                    } else {
+                        starsHtml += '<svg class="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>';
+                    }
+                }
+                $('#avg-stars').html(starsHtml);
+                
+                const bars = $('#rating-bars > div');
+                [5, 4, 3, 2, 1].forEach((rating, idx) => {
+                    const count = data.rating_distribution[rating] || 0;
+                    const pct = data.total > 0 ? (count / data.total * 100) : 0;
+                    $(bars[idx]).find('div > div').css('width', pct + '%');
+                    $(bars[idx]).find('span:last').text(count);
+                });
+            }
+            
+            if (data.reviews && data.reviews.length > 0) {
+                let html = '';
+                data.reviews.forEach(function(r) {
+                    html += `
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fade-in">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                                    <span class="text-primary-600 font-semibold">${r.user_name ? r.user_name.charAt(0).toUpperCase() : 'A'}</span>
                                 </div>
                                 <div>
-                                    <p class="font-medium text-gray-800 dark:text-white">${r.user_name}</p>
-                                    <p class="text-xs text-gray-500">${r.created_at}</p>
+                                    <p class="font-medium text-gray-800">${r.user_name || 'Anonymous'}</p>
+                                    <p class="text-xs text-gray-500">${r.created_at || ''}</p>
                                 </div>
                                 ${r.is_verified ? '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Verified Purchase</span>' : ''}
                             </div>
+                            <div class="flex gap-0.5">
+                                ${Array(5).fill(0).map((_, i) => `<svg class="w-4 h-4 ${i < r.rating ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`).join('')}
+                            </div>
                         </div>
-                        <div class="flex gap-0.5">
-                            ${Array(5).fill(0).map((_, i) => `<svg class="w-4 h-4 ${i < r.rating ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`).join('')}
+                        ${r.title ? `<h4 class="font-semibold text-gray-800 mb-2">${r.title}</h4>` : ''}
+                        <p class="text-gray-600">${r.review}</p>
+                        ${r.pros && r.pros.length > 0 ? `<div class="mt-3 flex flex-wrap gap-2">${r.pros.map(p => `<span class="px-2 py-1 bg-green-50 text-green-700 text-xs rounded-lg">+ ${p}</span>`).join('')}</div>` : ''}
+                        ${r.cons && r.cons.length > 0 ? `<div class="mt-2 flex flex-wrap gap-2">${r.cons.map(c => `<span class="px-2 py-1 bg-red-50 text-red-700 text-xs rounded-lg">- ${c}</span>`).join('')}</div>` : ''}
+                        <div class="mt-4 pt-4 border-t border-gray-100 flex items-center gap-4">
+                            <button onclick="markHelpful('${r.id}')" class="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
+                                Helpful (${r.helpful_count})
+                            </button>
                         </div>
-                    </div>
-                    ${r.title ? `<h4 class="font-semibold text-gray-800 dark:text-white mb-2">${r.title}</h4>` : ''}
-                    <p class="text-gray-600 dark:text-gray-300">${r.review}</p>
-                    ${r.pros && r.pros.length > 0 ? `<div class="mt-3 flex flex-wrap gap-2">${r.pros.map(p => `<span class="px-2 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-lg">+ ${p}</span>`).join('')}</div>` : ''}
-                    ${r.cons && r.cons.length > 0 ? `<div class="mt-2 flex flex-wrap gap-2">${r.cons.map(c => `<span class="px-2 py-1 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs rounded-lg">- ${c}</span>`).join('')}</div>` : ''}
-                    <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center gap-4">
-                        <button onclick="markHelpful('${r.id}')" class="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
-                            Helpful (${r.helpful_count})
-                        </button>
-                    </div>
-                </div>`;
-            });
-            $('#reviews-list').html(html);
-        }
-    });
+                    </div>`;
+                });
+                $('#reviews-list').html(html);
+            } else {
+                $('#reviews-list').html('<p class="text-center text-gray-500 py-8">No reviews yet. Be the first to review!</p>');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading reviews:', error);
+            $('#reviews-list').html('<p class="text-center text-red-500 py-8">Error loading reviews. Please refresh the page.</p>');
+        });
 }
 
 function setRating(rating) {
@@ -198,7 +214,7 @@ function setRating(rating) {
 }
 
 function openReviewModal() {
-    var userEmail = '{{ request.session.user_email|default:'' }}';
+    var userEmail = '{{ request.session.user_email|default:"" }}';
     if (!userEmail) {
         alert('Please login to write a review');
         window.location.href = '/accounts/login/?next=' + window.location.pathname;
@@ -212,14 +228,30 @@ function closeReviewModal() {
 }
 
 function markHelpful(reviewId) {
-    $.post('/api/offers/review/helpful/', JSON.stringify({ review_id: reviewId }), function(data) {
+    var userEmail = '{{ request.session.user_email|default:"" }}';
+    if (!userEmail) {
+        alert('Please login to mark reviews as helpful');
+        return;
+    }
+    
+    fetch('/api/offers/review/helpful/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ review_id: reviewId })
+    })
+    .then(response => response.json())
+    .then(data => {
         if (data.success) {
             loadReviews();
+        } else if (data.error) {
+            alert(data.error);
         }
-    }).fail(function(xhr) {
-        if (xhr.status === 401) {
-            alert('Please login to mark reviews as helpful');
-        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
     });
 }
 
@@ -240,16 +272,29 @@ $('#review-form').on('submit', function(e) {
         cons: $('input[name="cons"]').val().split(',').map(s => s.trim()).filter(s => s)
     };
     
-    $.post('/api/offers/review/submit/', JSON.stringify(formData), function(data) {
+    fetch('/api/offers/review/submit/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
         if (data.success) {
             alert(data.message + (data.is_verified ? ' (Verified Purchase)' : ''));
             closeReviewModal();
             loadReviews();
             $('#review-form')[0].reset();
             setRating(0);
+        } else if (data.error) {
+            alert(data.error);
         }
-    }).fail(function(xhr) {
-        alert(xhr.responseJSON?.error || 'Failed to submit review');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to submit review. Please try again.');
     });
 });
 

@@ -2,7 +2,10 @@ from django.shortcuts import render, redirect
 from django.views import View
 from django.http import JsonResponse
 from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from datetime import datetime
+from bson import ObjectId
 import json
 
 from offers.models import Coupon, CouponUsage, LimitedOffer, ProductReview
@@ -104,6 +107,7 @@ class ActiveOffersView(View):
         return JsonResponse({'offers': offers_data})
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class SubmitReviewView(View):
     """Submit a product review."""
     
@@ -125,9 +129,14 @@ class SubmitReviewView(View):
                 return JsonResponse({'error': 'Please login to submit a review'}, status=401)
             
             if not product_id or rating < 1 or rating > 5:
-                return JsonResponse({'error': 'Invalid review data'}, status=400)
+                return JsonResponse({'error': 'Invalid review data. Rating must be between 1 and 5.'}, status=400)
             
-            existing = ProductReview.objects(product_id=product_id, user_email=user_email).first()
+            try:
+                product_oid = ObjectId(product_id)
+            except:
+                return JsonResponse({'error': 'Invalid product ID'}, status=400)
+            
+            existing = ProductReview.objects(product_id=product_oid, user_email=user_email).first()
             if existing:
                 return JsonResponse({'error': 'You have already reviewed this product'}, status=400)
             
@@ -137,13 +146,13 @@ class SubmitReviewView(View):
             orders = Order.objects(user_email=user_email)
             for order in orders:
                 for item in order.items:
-                    if item.product_id == product_id:
+                    if str(item.product_id) == str(product_id) or item.product_id == product_id:
                         is_verified = True
                         order_number = order.order_number
                         break
             
             review = ProductReview(
-                product_id=product_id,
+                product_id=product_oid,
                 user_email=user_email,
                 user_name=user_name,
                 rating=rating,
@@ -168,6 +177,7 @@ class SubmitReviewView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class MarkReviewHelpfulView(View):
     """Mark a review as helpful."""
     
@@ -180,8 +190,15 @@ class MarkReviewHelpfulView(View):
             if not user_email:
                 return JsonResponse({'error': 'Please login'}, status=401)
             
-            from bson import ObjectId
-            review = ProductReview.objects.get(id=ObjectId(review_id))
+            try:
+                review_oid = ObjectId(review_id)
+            except:
+                return JsonResponse({'error': 'Invalid review ID'}, status=400)
+            
+            review = ProductReview.objects(id=review_oid).first()
+            
+            if not review:
+                return JsonResponse({'error': 'Review not found'}, status=404)
             
             if review.mark_helpful(user_email):
                 return JsonResponse({
@@ -192,15 +209,20 @@ class MarkReviewHelpfulView(View):
                 return JsonResponse({'error': 'You already marked this review'}, status=400)
                 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return JsonResponse({'error': str(e)}, status=500)
 
 
 def get_product_reviews(request, product_id):
     """Get all reviews for a product."""
-    from bson import ObjectId
+    try:
+        product_oid = ObjectId(product_id)
+    except:
+        return JsonResponse({'error': 'Invalid product ID', 'reviews': [], 'total': 0, 'average_rating': 0, 'rating_distribution': {}}, status=400)
     
     reviews = ProductReview.objects(
-        product_id=ObjectId(product_id),
+        product_id=product_oid,
         is_approved=True
     ).order_by('-helpful_count', '-created_at')
     
@@ -212,20 +234,20 @@ def get_product_reviews(request, product_id):
             'rating': r.rating,
             'title': r.title,
             'review': r.review,
-            'images': r.images,
+            'images': r.images if r.images else [],
             'is_verified': r.is_verified_purchase,
             'helpful_count': r.helpful_count,
-            'pros': r.pros,
-            'cons': r.cons,
-            'created_at': r.created_at.strftime('%d %b, %Y')
+            'pros': r.pros if r.pros else [],
+            'cons': r.cons if r.cons else [],
+            'created_at': r.created_at.strftime('%d %b, %Y') if r.created_at else ''
         })
     
     total = len(reviews_data)
     avg_rating = sum(r['rating'] for r in reviews_data) / total if total > 0 else 0
     
-    rating_dist = {'5': 0, '4': 0, '3': 0, '2': 0, '1': 0}
+    rating_dist = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
     for r in reviews_data:
-        rating_dist[str(r['rating'])] = rating_dist.get(str(r['rating']), 0) + 1
+        rating_dist[r['rating']] = rating_dist.get(r['rating'], 0) + 1
     
     return JsonResponse({
         'reviews': reviews_data,

@@ -11,17 +11,21 @@ services:
     environment:
       - DEBUG=False
       - DJANGO_SETTINGS_MODULE=config.settings.production
-      - MONGODB_HOST=mongo
-      - MONGODB_PORT=27017
-      - MONGODB_NAME=ecomm_db
-      - REDIS_URL=redis://redis:6379/1
+      - DB_NAME=${DB_NAME:-ecomm_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
       - GUNICORN_WORKERS=4
       - GUNICORN_THREADS=4
     depends_on:
-      mongo:
+      db:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -46,22 +50,23 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  mongo:
-    image: mongo:6.0
+  db:
+    image: postgres:16-alpine
     restart: always
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-admin}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-password}
+      - POSTGRES_DB=${DB_NAME:-ecomm_db}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ecomm_db}"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 10s
     networks:
       - ecomm_network
     deploy:
@@ -112,7 +117,7 @@ services:
           memory: 256M
 
 volumes:
-  mongo_data:
+  postgres_data:
   redis_data:
   static_volume:
   media_volume:

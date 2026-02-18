@@ -1,4 +1,4 @@
-FROM python:3.11-slim as builder
+FROM python:3.13-slim as builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
 
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -33,6 +33,8 @@ RUN pip install --no-cache-dir /wheels/* \
     && rm -rf /wheels
 
 COPY . .
+
+RUN python manage.py collectstatic --noinput || true
 
 RUN addgroup --system appgroup && adduser --system --group appuser \
     && chown -R appuser:appgroup /app

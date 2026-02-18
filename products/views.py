@@ -2,6 +2,9 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.views import View
 from django.http import Http404, JsonResponse
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from products.models import Product, Category, Wishlist
 import math
 import re
@@ -14,9 +17,14 @@ class HomeView(View):
     template_name = 'products/home.html'
     
     def get(self, request):
-        featured_products = Product.objects(is_featured=True, is_active=True)[:8]
-        latest_products = Product.objects(is_active=True).order_by('-created_at')[:12]
+        cache_key = "home_view_data"
+        cached_data = cache.get(cache_key)
         
+        if cached_data:
+            return render(request, self.template_name, cached_data)
+        
+        featured_products = list(Product.objects(is_featured=True, is_active=True)[:8])
+        latest_products = list(Product.objects(is_active=True).order_by('-created_at')[:12])
         categories = self._get_unique_categories()
         
         context = {
@@ -24,15 +32,26 @@ class HomeView(View):
             'latest_products': latest_products,
             'categories': categories,
         }
+        
+        cache.set(cache_key, context, 300)
+        
         return render(request, self.template_name, context)
     
     def _get_unique_categories(self):
-        products = Product.objects(is_active=True, category__exists=True)
+        cache_key = "categories_list"
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+        
+        products = Product.objects(is_active=True, category__exists=True).only('category')
         categories = {}
         for product in products:
             if product.category and product.category.slug:
                 categories[product.category.slug] = product.category.name
-        return [{'slug': k, 'name': v} for k, v in categories.items()]
+        
+        result = [{'slug': k, 'name': v} for k, v in categories.items()]
+        cache.set(cache_key, result, 3600)
+        return result
 
 
 class ProductListView(View):
@@ -42,12 +61,20 @@ class ProductListView(View):
     
     def get(self, request):
         page = int(request.GET.get('page', 1))
-        per_page = 12
+        per_page = 24
         category = request.GET.get('category')
         search = request.GET.get('search', '').strip()
         sort = request.GET.get('sort', '-created_at')
         min_price = request.GET.get('min_price')
         max_price = request.GET.get('max_price')
+        
+        cache_key = f"products:{category or 'all'}:{search}:{sort}:{min_price}:{max_price}:{page}"
+        cached_data = cache.get(cache_key)
+        
+        if cached_data and not search:
+            context = cached_data
+            context['page'] = page
+            return render(request, self.template_name, context)
         
         products = Product.objects(is_active=True)
         
@@ -93,12 +120,13 @@ class ProductListView(View):
         
         start = (page - 1) * per_page
         end = start + per_page
-        products = products[start:end]
         
-        categories = self._get_unique_categories()
+        products_list = list(products[start:end])
+        
+        categories = HomeView()._get_unique_categories()
         
         context = {
-            'products': products,
+            'products': products_list,
             'page': page,
             'total_pages': total_pages,
             'total_products': total_products,
@@ -109,15 +137,11 @@ class ProductListView(View):
             'max_price': max_price,
             'categories': categories,
         }
+        
+        if not search:
+            cache.set(cache_key, context, 60)
+        
         return render(request, self.template_name, context)
-    
-    def _get_unique_categories(self):
-        products = Product.objects(is_active=True, category__exists=True)
-        categories = {}
-        for product in products:
-            if product.category and product.category.slug:
-                categories[product.category.slug] = product.category.name
-        return [{'slug': k, 'name': v} for k, v in categories.items()]
 
 
 class ProductDetailView(View):
@@ -126,16 +150,28 @@ class ProductDetailView(View):
     template_name = 'products/product_detail.html'
     
     def get(self, request, slug):
-        product = Product.objects(slug=slug, is_active=True).first()
+        cache_key = f"product_detail:{slug}"
+        cached = cache.get(cache_key)
         
-        if not product:
-            raise Http404("Product not found")
-        
-        related_products = Product.objects(
-            category=product.category,
-            is_active=True,
-            id__ne=product.id
-        )[:4] if product.category else Product.objects(is_active=True, id__ne=product.id)[:4]
+        if cached:
+            product = cached['product']
+            related_products = cached['related_products']
+        else:
+            product = Product.objects(slug=slug, is_active=True).first()
+            
+            if not product:
+                raise Http404("Product not found")
+            
+            related_products = list(Product.objects(
+                category=product.category,
+                is_active=True,
+                id__ne=product.id
+            )[:4]) if product.category else list(Product.objects(is_active=True, id__ne=product.id)[:4])
+            
+            cache.set(cache_key, {
+                'product': product,
+                'related_products': related_products
+            }, 300)
         
         in_wishlist = False
         user_id = request.session.get('user_id')
@@ -146,10 +182,15 @@ class ProductDetailView(View):
             if wishlist and wishlist.has_product(str(product.id)):
                 in_wishlist = True
         
+        all_images = []
+        if product.images:
+            all_images = [img.url for img in product.images]
+        
         context = {
             'product': product,
             'related_products': related_products,
             'in_wishlist': in_wishlist,
+            'all_images': all_images,
         }
         return render(request, self.template_name, context)
 

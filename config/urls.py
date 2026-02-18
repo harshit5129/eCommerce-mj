@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/offers/', include('offers.urls')),
     path('cookies/', include('cookies.urls')),
     path('my-admin/analytics/', include('analytics.urls')),
+    path('', include('core.urls')),
     path('', include('pages.urls')),
 ]
 

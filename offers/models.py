@@ -1,53 +1,76 @@
-from datetime import datetime
-from mongoengine import (
-    Document, EmbeddedDocument,
-    StringField, BooleanField, DateTimeField,
-    IntField, FloatField, ListField, EmbeddedDocumentField,
-    DictField, ObjectIdField
-)
-from bson import ObjectId
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
+import json
 
 
-class Coupon(Document):
-    """Coupon/Discount code model."""
+class Coupon(models.Model):
+    """Coupon/Discount code model - PostgreSQL version."""
     
-    DISCOUNT_TYPE_CHOICES = (
+    DISCOUNT_TYPE_CHOICES = [
         ('percentage', 'Percentage'),
         ('fixed', 'Fixed Amount'),
+    ]
+    
+    code = models.CharField(max_length=50, unique=True, db_index=True)
+    description = models.CharField(max_length=200, blank=True)
+    
+    discount_type = models.CharField(
+        max_length=20, 
+        choices=DISCOUNT_TYPE_CHOICES, 
+        default='percentage'
+    )
+    discount_value = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
     )
     
-    code = StringField(required=True, unique=True, max_length=50)
-    description = StringField(max_length=200)
+    min_order_value = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
+    max_discount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
     
-    discount_type = StringField(choices=DISCOUNT_TYPE_CHOICES, default='percentage')
-    discount_value = FloatField(required=True, min_value=0)
+    usage_limit = models.PositiveIntegerField(default=0)
+    used_count = models.PositiveIntegerField(default=0)
+    per_user_limit = models.PositiveIntegerField(default=1)
     
-    min_order_value = FloatField(default=0)
-    max_discount = FloatField(default=0)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_until = models.DateTimeField()
     
-    usage_limit = IntField(default=0)
-    used_count = IntField(default=0)
-    per_user_limit = IntField(default=1)
+    is_active = models.BooleanField(default=True)
+    is_first_order_only = models.BooleanField(default=False)
     
-    valid_from = DateTimeField(default=datetime.utcnow)
-    valid_until = DateTimeField(required=True)
+    applicable_categories = models.JSONField(default=list, blank=True)
+    applicable_products = models.JSONField(default=list, blank=True)
     
-    is_active = BooleanField(default=True)
-    is_first_order_only = BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    applicable_categories = ListField(StringField(), default=list)
-    applicable_products = ListField(StringField(), default=list)
+    class Meta:
+        db_table = 'coupons'
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['valid_until']),
+        ]
+        ordering = ['-created_at']
     
-    created_at = DateTimeField(default=datetime.utcnow)
-    
-    meta = {
-        'collection': 'coupons',
-        'indexes': ['code', 'is_active', 'valid_until']
-    }
+    def __str__(self):
+        return self.code
     
     @property
     def is_valid(self):
-        now = datetime.utcnow()
+        """Check if coupon is currently valid."""
+        now = timezone.now()
         if not self.is_active:
             return False
         if self.valid_from and self.valid_from > now:
@@ -59,97 +82,127 @@ class Coupon(Document):
         return True
     
     def calculate_discount(self, cart_total):
-        if cart_total < self.min_order_value:
+        """Calculate discount amount for given cart total."""
+        if cart_total < float(self.min_order_value):
             return 0
         
         if self.discount_type == 'percentage':
-            discount = (self.discount_value / 100) * cart_total
+            discount = (float(self.discount_value) / 100) * cart_total
             if self.max_discount > 0:
-                discount = min(discount, self.max_discount)
+                discount = min(discount, float(self.max_discount))
         else:
-            discount = self.discount_value
+            discount = float(self.discount_value)
         
-        return round(discount, 2)
+        return round(min(discount, cart_total), 2)
     
     def can_use(self, user_email):
+        """Check if user can use this coupon."""
         if not self.is_valid:
             return False, "Coupon is not valid"
         
-        if self.is_first_order_only:
+        if self.is_first_order_only and user_email:
+            # Check if user has any orders
             from orders.models import Order
-            existing_orders = Order.objects(user_email=user_email).count()
-            if existing_orders > 0:
+            existing_orders = Order.objects.filter(user_email=user_email).exists()
+            if existing_orders:
                 return False, "This coupon is only for first-time customers"
         
         return True, "Valid"
+
+
+class CouponUsage(models.Model):
+    """Track coupon usage per user - PostgreSQL version."""
+    
+    coupon = models.ForeignKey(
+        Coupon, 
+        on_delete=models.CASCADE,
+        related_name='usages'
+    )
+    user_email = models.EmailField()
+    order_number = models.CharField(max_length=50)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    used_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'coupon_usage'
+        indexes = [
+            models.Index(fields=['coupon', 'user_email']),
+            models.Index(fields=['order_number']),
+        ]
+        ordering = ['-used_at']
     
     def __str__(self):
-        return self.code
+        return f"{self.coupon.code} used by {self.user_email}"
 
 
-class CouponUsage(Document):
-    """Track coupon usage per user."""
+class LimitedOffer(models.Model):
+    """Limited time flash sale offer - PostgreSQL version."""
     
-    coupon_id = ObjectIdField(required=True)
-    coupon_code = StringField(required=True)
-    user_email = StringField(required=True)
-    order_number = StringField(required=True)
-    discount_amount = FloatField(required=True)
-    used_at = DateTimeField(default=datetime.utcnow)
-    
-    meta = {
-        'collection': 'coupon_usage',
-        'indexes': ['coupon_id', 'user_email', 'order_number']
-    }
-
-
-class LimitedOffer(Document):
-    """Limited time flash sale offer."""
-    
-    OFFER_TYPE_CHOICES = (
+    OFFER_TYPE_CHOICES = [
         ('flash_sale', 'Flash Sale'),
         ('deal_of_day', 'Deal of the Day'),
         ('weekend_special', 'Weekend Special'),
         ('clearance', 'Clearance'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, unique=True, db_index=True)
+    description = models.TextField(blank=True)
+    offer_type = models.CharField(
+        max_length=20,
+        choices=OFFER_TYPE_CHOICES,
+        default='flash_sale'
     )
     
-    name = StringField(required=True, max_length=100)
-    slug = StringField(required=True, unique=True, max_length=100)
-    description = StringField(max_length=500)
-    offer_type = StringField(choices=OFFER_TYPE_CHOICES, default='flash_sale')
+    product_ids = models.JSONField(default=list, blank=True)
+    category_ids = models.JSONField(default=list, blank=True)
     
-    product_ids = ListField(StringField(), default=list)
-    category_ids = ListField(StringField(), default=list)
+    discount_type = models.CharField(
+        max_length=20,
+        choices=[('percentage', 'Percentage'), ('fixed', 'Fixed')],
+        default='percentage'
+    )
+    discount_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
     
-    discount_type = StringField(choices=[('percentage', 'Percentage'), ('fixed', 'Fixed')], default='percentage')
-    discount_value = FloatField(required=True, min_value=0)
+    original_prices = models.JSONField(default=dict, blank=True)
     
-    original_prices = DictField(default=dict)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
     
-    starts_at = DateTimeField(required=True)
-    ends_at = DateTimeField(required=True)
+    banner_image = models.URLField(max_length=500, blank=True)
+    banner_text = models.CharField(max_length=100, blank=True)
+    banner_color = models.CharField(max_length=20, default='red')
     
-    banner_image = StringField()
-    banner_text = StringField(max_length=100)
-    banner_color = StringField(default='red')
+    is_active = models.BooleanField(default=True)
+    show_countdown = models.BooleanField(default=True)
+    show_banner = models.BooleanField(default=True)
     
-    is_active = BooleanField(default=True)
-    show_countdown = BooleanField(default=True)
-    show_banner = BooleanField(default=True)
+    max_items = models.PositiveIntegerField(default=0)
+    items_sold = models.PositiveIntegerField(default=0)
     
-    max_items = IntField(default=0)
-    items_sold = IntField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    created_at = DateTimeField(default=datetime.utcnow)
+    class Meta:
+        db_table = 'limited_offers'
+        indexes = [
+            models.Index(fields=['slug']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['starts_at', 'ends_at']),
+        ]
+        ordering = ['-created_at']
     
-    meta = {
-        'collection': 'limited_offers',
-        'indexes': ['slug', 'is_active', 'starts_at', 'ends_at']
-    }
+    def __str__(self):
+        return self.name
     
     @property
     def is_live(self):
-        now = datetime.utcnow()
+        """Check if offer is currently live."""
+        now = timezone.now()
         return (
             self.is_active and
             self.starts_at <= now and
@@ -158,17 +211,22 @@ class LimitedOffer(Document):
     
     @property
     def is_upcoming(self):
-        now = datetime.utcnow()
+        """Check if offer is upcoming."""
+        now = timezone.now()
         return self.is_active and self.starts_at > now
     
     @property
     def time_remaining(self):
+        """Calculate time remaining for live offer."""
         if not self.is_live:
             return None
-        remaining = self.ends_at - datetime.utcnow()
+        
+        remaining = self.ends_at - timezone.now()
         total_seconds = int(remaining.total_seconds())
+        
         if total_seconds <= 0:
             return {'days': 0, 'hours': 0, 'minutes': 0, 'seconds': 0}
+        
         return {
             'days': total_seconds // 86400,
             'hours': (total_seconds % 86400) // 3600,
@@ -177,79 +235,97 @@ class LimitedOffer(Document):
         }
     
     def get_discounted_price(self, original_price, product_id=None):
+        """Calculate discounted price."""
         if self.discount_type == 'percentage':
-            return original_price * (1 - self.discount_value / 100)
-        return max(0, original_price - self.discount_value)
+            return original_price * (1 - float(self.discount_value) / 100)
+        return max(0, original_price - float(self.discount_value))
+
+
+class ProductReview(models.Model):
+    """Product review and rating model - PostgreSQL version."""
+    
+    product_id = models.IntegerField(db_index=True)  # Reference to Product.id
+    user_email = models.EmailField(db_index=True)
+    user_name = models.CharField(max_length=100)
+    
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    title = models.CharField(max_length=100, blank=True)
+    review = models.TextField(blank=True)
+    images = models.JSONField(default=list, blank=True)
+    
+    is_verified_purchase = models.BooleanField(default=False)
+    order_number = models.CharField(max_length=50, blank=True)
+    
+    helpful_count = models.PositiveIntegerField(default=0)
+    helpful_users = models.JSONField(default=list, blank=True)
+    
+    is_approved = models.BooleanField(default=True)
+    admin_response = models.TextField(blank=True)
+    
+    pros = models.JSONField(default=list, blank=True)
+    cons = models.JSONField(default=list, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'product_reviews'
+        indexes = [
+            models.Index(fields=['product_id']),
+            models.Index(fields=['user_email']),
+            models.Index(fields=['rating']),
+            models.Index(fields=['created_at']),
+        ]
+        ordering = ['-helpful_count', '-created_at']
     
     def __str__(self):
-        return self.name
-
-
-class ProductReview(Document):
-    """Product review and rating model."""
-    
-    product_id = ObjectIdField(required=True)
-    user_email = StringField(required=True)
-    user_name = StringField(required=True)
-    
-    rating = IntField(required=True, min_value=1, max_value=5)
-    title = StringField(max_length=100)
-    review = StringField(max_length=2000)
-    images = ListField(StringField(), default=list)
-    
-    is_verified_purchase = BooleanField(default=False)
-    order_number = StringField()
-    
-    helpful_count = IntField(default=0)
-    helpful_users = ListField(StringField(), default=list)
-    
-    is_approved = BooleanField(default=True)
-    admin_response = StringField()
-    
-    pros = ListField(StringField(), default=list)
-    cons = ListField(StringField(), default=list)
-    
-    created_at = DateTimeField(default=datetime.utcnow)
-    updated_at = DateTimeField(default=datetime.utcnow)
-    
-    meta = {
-        'collection': 'product_reviews',
-        'indexes': ['product_id', 'user_email', 'rating', 'created_at']
-    }
-    
-    def save(self, *args, **kwargs):
-        self.updated_at = datetime.utcnow()
-        return super().save(*args, **kwargs)
+        return f"Review by {self.user_name} - {self.rating} stars"
     
     @property
     def stars_display(self):
+        """Return star display ranges."""
         filled = self.rating
         empty = 5 - self.rating
         return {'filled': range(filled), 'empty': range(empty)}
     
     def mark_helpful(self, user_email):
+        """Mark review as helpful by a user."""
         if user_email not in self.helpful_users:
             self.helpful_users.append(user_email)
             self.helpful_count += 1
-            self.save()
+            self.save(update_fields=['helpful_users', 'helpful_count'])
             return True
         return False
-    
-    def __str__(self):
-        return f"Review by {self.user_name} - {self.rating} stars"
 
 
-class ReviewSummary(EmbeddedDocument):
-    """Summary of product reviews."""
+class ReviewSummary(models.Model):
+    """Summary of product reviews - PostgreSQL version."""
     
-    total_reviews = IntField(default=0)
-    average_rating = FloatField(default=0)
-    rating_distribution = DictField(default=lambda: {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0})
+    product_id = models.IntegerField(unique=True, db_index=True)
+    total_reviews = models.PositiveIntegerField(default=0)
+    average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    rating_distribution = models.JSONField(default=dict)
     
-    def update_from_reviews(self, reviews):
-        self.total_reviews = len(reviews)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'review_summaries'
+    
+    def update_from_reviews(self):
+        """Update summary from all reviews for this product."""
+        reviews = ProductReview.objects.filter(product_id=self.product_id, is_approved=True)
+        self.total_reviews = reviews.count()
+        
         if self.total_reviews > 0:
-            self.average_rating = sum(r.rating for r in reviews) / self.total_reviews
+            avg = reviews.aggregate(models.Avg('rating'))['rating__avg']
+            self.average_rating = round(avg, 2) if avg else 0
+            
+            # Calculate distribution
             self.rating_distribution = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0}
-            for r in reviews:
-                self.rating_distribution[str(r.rating)] = self.rating_distribution.get(str(r.rating), 0) + 1
+            for review in reviews:
+                key = str(review.rating)
+                self.rating_distribution[key] = self.rating_distribution.get(key, 0) + 1
+        
+        self.save()

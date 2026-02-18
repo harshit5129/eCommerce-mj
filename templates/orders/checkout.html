@@ -96,25 +96,31 @@
                         Payment Method
                     </h2>
                     
-                    <div class="space-y-3">
-                        <label class="flex items-center p-4 border-2 border-primary-500 bg-primary-50 rounded-xl cursor-pointer">
-                            <input type="radio" name="payment_method" value="cash" checked 
-                                   class="w-4 h-4 text-primary-600">
-                            <div class="ml-4">
-                                <span class="font-semibold text-gray-800">Cash on Delivery</span>
-                                <p class="text-sm text-gray-500">Pay when you receive your order</p>
+                     <div class="space-y-3">
+                        <input type="hidden" name="payment_method" value="razorpay">
+                        
+                        <div class="flex items-center p-4 border-2 border-primary-500 bg-primary-50 rounded-xl">
+                            <svg class="w-6 h-6 text-primary-600 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                            </svg>
+                            <div>
+                                <span class="font-semibold text-gray-800">Online Payment</span>
+                                <p class="text-sm text-gray-500">Card, UPI, NetBanking, Wallet via Razorpay</p>
                             </div>
                             <svg class="w-6 h-6 text-green-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        </label>
+                        </div>
                         
-                        <label class="flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors opacity-50">
-                            <input type="radio" name="payment_method" value="card" disabled 
-                                   class="w-4 h-4 text-primary-600">
-                            <div class="ml-4">
-                                <span class="font-semibold text-gray-400">Credit/Debit Card</span>
-                                <p class="text-sm text-gray-400">Coming soon</p>
+                        <div class="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                            <div class="flex items-start gap-3">
+                                <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-blue-900">Secure Payment</p>
+                                    <p class="text-sm text-blue-700 mt-1">Your payment is processed securely via Razorpay. We accept all major credit/debit cards, UPI, NetBanking, and wallets.</p>
+                                </div>
                             </div>
-                        </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -171,8 +177,8 @@
                     </div>
                     
                     <button type="submit" id="place-order-btn" class="w-full btn-gradient text-white py-3.5 rounded-xl font-medium shadow-lg shadow-primary-500/30 mt-6 flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span>Place Order</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        <span>Pay Now</span>
                     </button>
                     
                     <p class="text-xs text-gray-400 text-center mt-4">
@@ -186,6 +192,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 $('#checkout-form').on('submit', function(e) {
     e.preventDefault();
@@ -205,7 +212,7 @@ $('#checkout-form').on('submit', function(e) {
             'postal_code': $('input[name="postal_code"]').val(),
             'country': $('input[name="country"]').val(),
         },
-        'payment_method': $('input[name="payment_method"]:checked').val(),
+        'payment_method': 'razorpay',
         'notes': $('textarea[name="notes"]').val(),
         'shipping_cost': parseFloat($('input[name="shipping_cost"]').val()),
         'tax': parseFloat($('input[name="tax"]').val()),
@@ -218,15 +225,85 @@ $('#checkout-form').on('submit', function(e) {
         data: JSON.stringify(formData),
         success: function(response) {
             if (response.success) {
-                window.location.href = response.redirect_url;
+                // Initialize Razorpay payment
+                initRazorpayPayment(response.order_number);
             }
         },
         error: function(xhr) {
-            btn.prop('disabled', false).html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Place Order');
+            btn.prop('disabled', false).html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Pay Now');
             const response = JSON.parse(xhr.responseText);
             Cart.showNotification(response.error || 'An error occurred', 'error');
         }
     });
 });
+
+function initRazorpayPayment(orderNumber) {
+    // Create Razorpay order
+    $.ajax({
+        url: '{% url "create_payment" %}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            'order_number': orderNumber
+        }),
+        success: function(response) {
+            if (response.success) {
+                const options = {
+                    key: response.key_id,
+                    amount: response.amount,
+                    currency: response.currency,
+                    name: 'E-Shop',
+                    description: 'Order #' + response.order_number,
+                    order_id: response.order_id,
+                    handler: function(paymentResponse) {
+                        verifyPayment(paymentResponse, orderNumber);
+                    },
+                    prefill: response.prefill,
+                    theme: {
+                        color: '#4F46E5'
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            $('#place-order-btn').prop('disabled', false).html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Place Order');
+                            Cart.showNotification('Payment cancelled. You can retry from your order history.', 'info');
+                        }
+                    }
+                };
+                
+                const rzp = new Razorpay(options);
+                rzp.open();
+            }
+        },
+        error: function(xhr) {
+            $('#place-order-btn').prop('disabled', false).html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Place Order');
+            const response = JSON.parse(xhr.responseText);
+            Cart.showNotification(response.error || 'Failed to initialize payment', 'error');
+        }
+    });
+}
+
+function verifyPayment(paymentResponse, orderNumber) {
+    $.ajax({
+        url: '{% url "verify_payment" %}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            'razorpay_payment_id': paymentResponse.razorpay_payment_id,
+            'razorpay_order_id': paymentResponse.razorpay_order_id,
+            'razorpay_signature': paymentResponse.razorpay_signature,
+            'order_number': orderNumber
+        }),
+        success: function(response) {
+            if (response.success) {
+                window.location.href = response.redirect_url;
+            }
+        },
+        error: function(xhr) {
+            $('#place-order-btn').prop('disabled', false).html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Place Order');
+            const response = JSON.parse(xhr.responseText);
+            Cart.showNotification(response.error || 'Payment verification failed', 'error');
+        }
+    });
+}
 </script>
 {% endblock %}

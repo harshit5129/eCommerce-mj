@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     
     # Third party
     'rest_framework',
@@ -47,7 +48,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'core.middleware.MongoDBConnectionMiddleware',
+    'core.middleware.SecurityHeadersMiddleware',
+    'core.middleware.RateLimitMiddleware',
+    'core.middleware.AuthenticationRateLimitMiddleware',
+    'core.middleware.RequestLoggingMiddleware',
+    'core.middleware.CacheControlMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -72,12 +77,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+# PostgreSQL Configuration
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'ecomm_db'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'password'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
     }
 }
+
+# Connection pooling for PostgreSQL (production)
+if not DEBUG:
+    DATABASES['default']['OPTIONS']['MAX_CONNS'] = 20
+    DATABASES['default']['OPTIONS']['MIN_CONNS'] = 5
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -100,74 +118,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# MongoDB Configuration using MongoEngine
-import mongoengine
-
-MONGODB_URI = os.getenv('MONGODB_URI', '')
-MONGODB_HOST = os.getenv('MONGODB_HOST', 'localhost')
-MONGODB_PORT = int(os.getenv('MONGODB_PORT', 27017))
-MONGODB_NAME = os.getenv('MONGODB_NAME', 'ecomm_db')
-
-MONGODB_AVAILABLE = False
-
-def connect_mongodb():
-    """Connect to MongoDB with proper error handling."""
-    global MONGODB_AVAILABLE
-    
-    try:
-        if MONGODB_URI:
-            mongoengine.connect(
-                host=MONGODB_URI,
-                alias='default',
-                serverSelectionTimeoutMS=10000,
-                socketTimeoutMS=30000,
-                connectTimeoutMS=10000,
-                retryWrites=True,
-                w='majority',
-                uuidRepresentation='standard',
-                maxPoolSize=100,
-                minPoolSize=10,
-                maxIdleTimeMS=60000,
-                waitQueueTimeoutMS=10000,
-            )
-            db_name = MONGODB_URI.split('/')[-1].split('?')[0] or MONGODB_NAME
-            print(f"✓ MongoDB Atlas connected successfully to database: {db_name}")
-        else:
-            mongoengine.connect(
-                db=MONGODB_NAME,
-                host=MONGODB_HOST,
-                port=MONGODB_PORT,
-                alias='default',
-                serverSelectionTimeoutMS=5000,
-            )
-            print(f"✓ MongoDB connected successfully to: {MONGODB_HOST}:{MONGODB_PORT}/{MONGODB_NAME}")
-        
-        MONGODB_AVAILABLE = True
-        return True
-        
-    except Exception as e:
-        print(f"⚠ Warning: Could not connect to MongoDB: {e}")
-        print("  The application will run with limited functionality.")
-        MONGODB_AVAILABLE = False
-        return False
-
-connect_mongodb()
-
-def get_mongodb_connection():
-    """Get or reconnect to MongoDB."""
-    global MONGODB_AVAILABLE
-    
-    try:
-        conn = mongoengine.get_connection()
-        if conn:
-            return conn
-    except:
-        pass
-    
-    MONGODB_AVAILABLE = connect_mongodb()
-    return MONGODB_AVAILABLE
-
-AUTH_USER_MODEL = 'users.DjangoUser'
+AUTH_USER_MODEL = 'users.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -210,12 +161,92 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply
 
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', 3600))
 
+# Cache configuration
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
     }
 }
 
+# Sessions using cache
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
 RATE_LIMIT_REQUESTS = int(os.getenv('RATE_LIMIT_REQUESTS', '100'))
 RATE_LIMIT_PERIOD = int(os.getenv('RATE_LIMIT_PERIOD', '60'))
+
+# Celery Configuration
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose'
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'ecommerce': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
+# Create logs directory if it doesn't exist
+import pathlib
+pathlib.Path(BASE_DIR / 'logs').mkdir(exist_ok=True)
+
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
+RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
+
+# Payment Methods
+PAYMENT_METHODS = {
+    'cod': {
+        'name': 'Cash on Delivery',
+        'enabled': True,
+    },
+    'razorpay': {
+        'name': 'Pay Online (Card/UPI/NetBanking)',
+        'enabled': bool(RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET),
+    }
+}

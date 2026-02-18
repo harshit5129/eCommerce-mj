@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from django.views import View
 from django.db import connection
+from django.core.cache import cache
 import time
 
 
@@ -14,6 +15,7 @@ class HealthCheckView(View):
             'checks': {}
         }
         
+        # Check PostgreSQL
         try:
             with connection.cursor() as cursor:
                 cursor.execute('SELECT 1')
@@ -22,18 +24,8 @@ class HealthCheckView(View):
             health['checks']['database'] = f'error: {str(e)}'
             health['status'] = 'unhealthy'
         
+        # Check Redis/Cache
         try:
-            import mongoengine
-            from config.settings.base import MONGODB_AVAILABLE
-            if MONGODB_AVAILABLE:
-                health['checks']['mongodb'] = 'ok'
-            else:
-                health['checks']['mongodb'] = 'unavailable'
-        except Exception as e:
-            health['checks']['mongodb'] = f'error: {str(e)}'
-        
-        try:
-            from django.core.cache import cache
             cache.set('health_check', 'ok', 10)
             if cache.get('health_check') == 'ok':
                 health['checks']['cache'] = 'ok'
@@ -55,6 +47,7 @@ class ReadinessCheckView(View):
     def get(self, request):
         checks = []
         
+        # Check PostgreSQL
         try:
             with connection.cursor() as cursor:
                 cursor.execute('SELECT 1')
@@ -62,10 +55,10 @@ class ReadinessCheckView(View):
         except Exception:
             checks.append(False)
         
+        # Check Redis
         try:
-            import mongoengine
-            from config.settings.base import MONGODB_AVAILABLE
-            checks.append(MONGODB_AVAILABLE)
+            cache.set('readiness_check', 'ok', 10)
+            checks.append(cache.get('readiness_check') == 'ok')
         except Exception:
             checks.append(False)
         

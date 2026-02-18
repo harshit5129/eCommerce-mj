@@ -7,7 +7,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from products.models import Product
 from products.serializers import ProductListSerializer, ProductDetailSerializer
-from mongoengine.errors import DoesNotExist, ValidationError
 
 
 class ProductListAPIView(generics.ListAPIView):
@@ -23,23 +22,26 @@ class ProductListAPIView(generics.ListAPIView):
     ordering = ['-created_at']
     
     def get_queryset(self):
-        queryset = Product.objects(is_active=True)
+        queryset = Product.objects.filter(is_active=True)
         
         category = self.request.query_params.get('category')
         if category:
-            queryset = queryset(category__slug=category)
+            queryset = queryset.filter(category__slug=category)
         
         min_price = self.request.query_params.get('min_price')
         max_price = self.request.query_params.get('max_price')
         if min_price:
-            queryset = queryset(price__gte=float(min_price))
+            try:
+                queryset = queryset.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
         if max_price:
-            queryset = queryset(price__lte=float(max_price))
+            try:
+                queryset = queryset.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
         
-        return queryset
-    
-    def get_serializer(self, *args, **kwargs):
-        return super().get_serializer(*args, **kwargs)
+        return queryset.select_related('category')
 
 
 class ProductDetailAPIView(generics.RetrieveAPIView):
@@ -49,17 +51,23 @@ class ProductDetailAPIView(generics.RetrieveAPIView):
     serializer_class = ProductDetailSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     lookup_field = 'pk'
-    
-    def get_queryset(self):
-        return Product.objects(is_active=True)
+    queryset = Product.objects.filter(is_active=True)
     
     def get_object(self):
         pk_or_slug = self.kwargs['pk']
-        product = Product.objects(id=pk_or_slug, is_active=True).first()
-        if product:
-            return product
-        product = Product.objects(slug=pk_or_slug, is_active=True).first()
-        return product
+        
+        # Try to get by ID first
+        try:
+            pk = int(pk_or_slug)
+            return Product.objects.get(id=pk, is_active=True)
+        except (ValueError, Product.DoesNotExist):
+            pass
+        
+        # Try to get by slug
+        try:
+            return Product.objects.get(slug=pk_or_slug, is_active=True)
+        except Product.DoesNotExist:
+            return None
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -80,4 +88,4 @@ class FeaturedProductsAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
-        return Product.objects(is_featured=True, is_active=True)[:8]
+        return Product.objects.filter(is_featured=True, is_active=True)[:8]

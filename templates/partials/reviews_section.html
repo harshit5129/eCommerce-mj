@@ -214,12 +214,11 @@ function setRating(rating) {
 }
 
 function openReviewModal() {
-    var userEmail = '{{ request.session.user_email|default:"" }}';
-    if (!userEmail) {
+    {% if not request.user.is_authenticated %}
         alert('Please login to write a review');
         window.location.href = '/accounts/login/?next=' + window.location.pathname;
         return;
-    }
+    {% endif %}
     $('#review-modal').removeClass('hidden');
 }
 
@@ -228,11 +227,10 @@ function closeReviewModal() {
 }
 
 function markHelpful(reviewId) {
-    var userEmail = '{{ request.session.user_email|default:"" }}';
-    if (!userEmail) {
+    {% if not request.user.is_authenticated %}
         alert('Please login to mark reviews as helpful');
         return;
-    }
+    {% endif %}
     
     fetch('/api/offers/review/helpful/', {
         method: 'POST',

@@ -25,7 +25,7 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                     </svg>
-                    <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center {% if wishlist_count == 0 %}hidden{% endif %}">
+                    <span class="wishlist-count absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center {% if wishlist_count == 0 %}hidden{% endif %}">
                         {{ wishlist_count }}
                     </span>
                 </a>
@@ -39,20 +39,20 @@
                     </span>
                 </a>
                 
-                {% if request.session.user_id %}
+                {% if request.user.is_authenticated %}
                     <div class="relative group">
                         <button class="flex items-center gap-2 p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                             </svg>
-                            <span class="hidden sm:block font-medium">{{ request.session.username|default:"Account" }}</span>
+                            <span class="hidden sm:block font-medium">{{ request.user.username|default:request.user.email|default:"Account" }}</span>
                             <svg class="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </button>
                         <div class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl py-2 hidden group-hover:block animate-fade-in border border-gray-100">
                             <div class="px-4 py-3 border-b border-gray-100">
-                                <p class="text-sm font-medium text-gray-800">{{ request.session.user_email }}</p>
+                                <p class="text-sm font-medium text-gray-800">{{ request.user.email }}</p>
                             </div>
                             <a href="{% url 'profile' %}" class="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>

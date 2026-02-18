@@ -1,17 +1,13 @@
 from rest_framework import serializers
-from users.mongo_models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
-class UserSerializer(serializers.Serializer):
-    id = serializers.CharField()
-    email = serializers.EmailField()
-    username = serializers.CharField()
-    first_name = serializers.CharField(allow_blank=True)
-    last_name = serializers.CharField(allow_blank=True)
-    phone = serializers.CharField(allow_blank=True, allow_null=True)
-    is_active = serializers.BooleanField()
-    date_joined = serializers.DateTimeField()
-    last_login = serializers.DateTimeField(allow_null=True)
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone', 'is_active', 'date_joined', 'last_login']
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -26,10 +22,10 @@ class RegisterSerializer(serializers.Serializer):
         if data['password'] != data['password_confirm']:
             raise serializers.ValidationError("Passwords do not match")
         
-        if User.objects(email=data['email']).first():
+        if User.objects.filter(email=data['email']).exists():
             raise serializers.ValidationError("Email already registered")
         
-        if User.objects(username=data['username']).first():
+        if User.objects.filter(username=data['username']).exists():
             raise serializers.ValidationError("Username already taken")
         
         return data

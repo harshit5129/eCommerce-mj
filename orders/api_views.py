@@ -4,11 +4,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db import transaction
+from django.db.models import F
 
-from orders.models import Order, OrderItem, ShippingAddress
+from orders.models import Order, OrderItem
 from orders.serializers import OrderSerializer, CreateOrderSerializer
 from products.models import Product
-from mongoengine.errors import DoesNotExist, ValidationError
 
 
 class OrderListAPIView(APIView):
@@ -19,7 +20,7 @@ class OrderListAPIView(APIView):
     
     def get(self, request):
         user_id = str(request.user.id)
-        orders = Order.objects(user_id=user_id).order_by('-created_at')
+        orders = Order.objects.filter(user_id=user_id).order_by('-created_at')
         
         return Response({
             'orders': [OrderSerializer(order).data for order in orders],
@@ -36,8 +37,9 @@ class OrderDetailAPIView(APIView):
     def get(self, request, order_number):
         user_id = str(request.user.id)
         
-        order = Order.objects(order_number=order_number, user_id=user_id).first()
-        if not order:
+        try:
+            order = Order.objects.get(order_number=order_number, user_id=user_id)
+        except Order.DoesNotExist:
             return Response(
                 {'error': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND
@@ -74,52 +76,56 @@ class CreateOrderAPIView(APIView):
         discount = float(serializer.validated_data.get('discount', 0))
         total = cart_total + shipping_cost + tax - discount
         
-        order_items = []
-        for item in cart:
-            order_items.append(OrderItem(
-                product_id=item.get('product_id'),
-                product_name=item.get('product_name'),
-                product_image=item.get('product_image'),
-                price=item.get('product_price'),
-                quantity=item.get('quantity'),
-            ))
-            
-            product = Product.objects(id=item.get('product_id')).first()
-            if product and product.track_inventory:
-                product.stock_quantity -= item.get('quantity', 1)
-                product.save()
-        
         order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        user_id = str(request.user.id) if hasattr(request.user, 'id') and request.user.is_authenticated else 'guest'
         
-        user_id = str(request.user.id) if hasattr(request.user, 'id') else 'guest'
-        
-        shipping_address = ShippingAddress(
-            first_name=address_data.get('first_name'),
-            last_name=address_data.get('last_name'),
-            email=address_data.get('email'),
-            phone=address_data.get('phone', ''),
-            street=address_data.get('street'),
-            city=address_data.get('city'),
-            state=address_data.get('state'),
-            postal_code=address_data.get('postal_code'),
-            country=address_data.get('country', 'USA'),
-        )
-        
-        order = Order(
-            order_number=order_number,
-            user_id=user_id,
-            user_email=address_data.get('email'),
-            items=order_items,
-            subtotal=cart_total,
-            shipping_cost=shipping_cost,
-            tax=tax,
-            discount=discount,
-            total=total,
-            shipping_address=shipping_address,
-            payment_method=serializer.validated_data.get('payment_method', 'cash'),
-            notes=serializer.validated_data.get('notes', ''),
-        )
-        order.save()
+        with transaction.atomic():
+            # Create order
+            order = Order.objects.create(
+                order_number=order_number,
+                user_id=user_id,
+                user_email=address_data.get('email'),
+                subtotal=cart_total,
+                shipping_cost=shipping_cost,
+                tax=tax,
+                discount=discount,
+                total=total,
+                shipping_address={
+                    'first_name': address_data.get('first_name'),
+                    'last_name': address_data.get('last_name'),
+                    'email': address_data.get('email'),
+                    'phone': address_data.get('phone', ''),
+                    'street': address_data.get('street'),
+                    'city': address_data.get('city'),
+                    'state': address_data.get('state'),
+                    'postal_code': address_data.get('postal_code'),
+                    'country': address_data.get('country', 'USA'),
+                },
+                payment_method=serializer.validated_data.get('payment_method', 'cash'),
+                notes=serializer.validated_data.get('notes', ''),
+            )
+            
+            # Create order items and deduct inventory
+            for item in cart:
+                try:
+                    product_id = int(item.get('product_id'))
+                    quantity = int(item.get('quantity', 1))
+                    
+                    OrderItem.objects.create(
+                        order=order,
+                        product_id=product_id,
+                        product_name=item.get('product_name'),
+                        product_image=item.get('product_image', ''),
+                        price=item.get('product_price', 0),
+                        quantity=quantity,
+                    )
+                    
+                    # Deduct inventory atomically
+                    Product.objects.filter(id=product_id, track_inventory=True).update(
+                        stock_quantity=F('stock_quantity') - quantity
+                    )
+                except (ValueError, TypeError):
+                    pass
         
         request.session['cart'] = []
         request.session.modified = True
@@ -148,8 +154,9 @@ class CancelOrderAPIView(APIView):
         
         user_id = str(request.user.id)
         
-        order = Order.objects(order_number=order_number, user_id=user_id).first()
-        if not order:
+        try:
+            order = Order.objects.get(order_number=order_number, user_id=user_id)
+        except Order.DoesNotExist:
             return Response(
                 {'error': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND
@@ -161,15 +168,16 @@ class CancelOrderAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        for item in order.items:
-            product = Product.objects(id=item.product_id).first()
-            if product and product.track_inventory:
-                product.stock_quantity += item.quantity
-                product.save()
-        
-        order.order_status = 'cancelled'
-        order.cancelled_at = datetime.utcnow()
-        order.save()
+        with transaction.atomic():
+            # Restore inventory
+            for item in order.items.all():
+                Product.objects.filter(id=item.product_id, track_inventory=True).update(
+                    stock_quantity=F('stock_quantity') + item.quantity
+                )
+            
+            order.order_status = 'cancelled'
+            order.cancelled_at = datetime.utcnow()
+            order.save()
         
         return Response({
             'success': True,

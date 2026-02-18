@@ -10,10 +10,23 @@ from django.conf import settings
 from django.utils.crypto import get_random_string
 import jwt
 import os
+import logging
 
-from users.mongo_models import User as MongoUser
-from users.models import DjangoUser
+from users.models import User
 from users.forms import UserRegistrationForm, UserLoginForm, UserProfileForm
+
+logger = logging.getLogger(__name__)
+
+
+def generate_token(user):
+    """Generate JWT token for password reset."""
+    payload = {
+        'user_id': str(user.id),
+        'email': user.email,
+        'exp': datetime.utcnow() + timedelta(hours=1),
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 class PasswordResetView(View):
@@ -32,15 +45,15 @@ class PasswordResetView(View):
             return render(request, self.template_name)
         
         try:
-            mongo_user = MongoUser.objects(email=email).first()
-            if mongo_user:
-                token = generate_token(mongo_user)
+            user = User.objects.filter(email=email).first()
+            if user:
+                token = generate_token(user)
                 reset_url = f"{settings.SITE_URL}/accounts/password/reset/confirm/{token}/"
                 
                 send_mail(
                     subject=f'Password Reset - {settings.SITE_NAME}',
                     message=f'''
-Hello {mongo_user.first_name or mongo_user.username},
+Hello {user.first_name or user.username},
 
 You requested a password reset for your account.
 
@@ -63,6 +76,7 @@ Thanks,
             return redirect('password_reset_done')
             
         except Exception as e:
+            logger.error(f"Password reset error: {e}", exc_info=True)
             messages.error(request, 'An error occurred. Please try again.')
             return render(request, self.template_name)
 
@@ -86,8 +100,9 @@ class PasswordResetConfirmView(View):
             payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
             user_id = payload.get('user_id')
             
-            mongo_user = MongoUser.objects(id=user_id).first()
-            if not mongo_user:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
                 messages.error(request, 'Invalid reset link.')
                 return redirect('password_reset')
             
@@ -105,37 +120,31 @@ class PasswordResetConfirmView(View):
             payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
             user_id = payload.get('user_id')
             
-            mongo_user = MongoUser.objects(id=user_id).first()
-            if not mongo_user:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
                 messages.error(request, 'Invalid reset link.')
                 return redirect('password_reset')
             
-            password = request.POST.get('password', '')
-            confirm_password = request.POST.get('confirm_password', '')
+            password = request.POST.get('password', '').strip()
+            password_confirm = request.POST.get('password_confirm', '').strip()
             
             if not password or len(password) < 8:
                 messages.error(request, 'Password must be at least 8 characters.')
                 return render(request, self.template_name, {'token': token, 'valid': True})
             
-            if password != confirm_password:
+            if password != password_confirm:
                 messages.error(request, 'Passwords do not match.')
                 return render(request, self.template_name, {'token': token, 'valid': True})
             
-            mongo_user.set_password(password)
-            mongo_user.save()
+            user.set_password(password)
+            user.save()
             
-            try:
-                django_user = DjangoUser.objects.get(email=mongo_user.email)
-                django_user.set_password(password)
-                django_user.save()
-            except DjangoUser.DoesNotExist:
-                pass
-            
-            messages.success(request, 'Your password has been reset successfully. Please login.')
-            return redirect('password_reset_complete')
+            messages.success(request, 'Password reset successful. Please login with your new password.')
+            return redirect('login')
             
         except jwt.ExpiredSignatureError:
-            messages.error(request, 'Reset link has expired. Please request a new one.')
+            messages.error(request, 'Reset link has expired.')
             return redirect('password_reset')
         except jwt.InvalidTokenError:
             messages.error(request, 'Invalid reset link.')
@@ -151,168 +160,76 @@ class PasswordResetCompleteView(View):
         return render(request, self.template_name)
 
 
-def generate_token(user):
-    """Generate JWT token for user."""
-    payload = {
-        'user_id': str(user.id),
-        'email': user.email,
-        'username': user.username,
-        'exp': datetime.utcnow() + timedelta(minutes=settings.JWT_ACCESS_TOKEN_LIFETIME),
-        'iat': datetime.utcnow()
-    }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-
-
-def sync_users(email, username, first_name='', last_name='', password=None, is_active=True):
-    """Sync Django user with MongoDB user."""
-    # Create or get Django user
-    django_user, created = DjangoUser.objects.get_or_create(
-        email=email,
-        defaults={
-            'username': username,
-            'first_name': first_name,
-            'last_name': last_name,
-        }
-    )
-    
-    if password:
-        django_user.set_password(password)
-        django_user.save()
-    
-    # Create or get MongoDB user
-    mongo_user = MongoUser.objects(email=email).first()
-    if not mongo_user:
-        mongo_user = MongoUser(
-            email=email,
-            username=username,
-            first_name=first_name,
-            last_name=last_name,
-            is_active=is_active,
-        )
-        if password:
-            mongo_user.set_password(password)
-        mongo_user.save()
-    
-    return django_user, mongo_user
-
-
-class RegisterView(View):
-    """User registration view."""
-    
-    template_name = 'users/register.html'
-    
-    def get(self, request):
-        if request.session.get('user_id'):
-            return redirect('home')
-        form = UserRegistrationForm()
-        return render(request, self.template_name, {'form': form})
-    
-    def post(self, request):
-        form = UserRegistrationForm(request.POST)
-        if form.is_valid():
-            # Sync both users
-            django_user, mongo_user = sync_users(
-                email=form.cleaned_data['email'],
-                username=form.cleaned_data['username'],
-                first_name=form.cleaned_data['first_name'],
-                last_name=form.cleaned_data['last_name'],
-                password=form.cleaned_data['password'],
-            )
-            
-            messages.success(request, 'Registration successful! Please login.')
-            return redirect('login')
-        
-        return render(request, self.template_name, {'form': form})
-
-
 class LoginView(View):
     """User login view."""
     
     template_name = 'users/login.html'
     
     def get(self, request):
-        if request.session.get('user_id'):
+        if request.user.is_authenticated:
             return redirect('home')
         form = UserLoginForm()
         return render(request, self.template_name, {'form': form})
     
     def post(self, request):
         form = UserLoginForm(request.POST)
+        
         if form.is_valid():
-            email = form.cleaned_data['email']
-            password = form.cleaned_data['password']
+            email = form.cleaned_data.get('email')
+            password = form.cleaned_data.get('password')
             
             try:
-                # Try Django auth first
-                django_user = DjangoUser.objects.get(email=email)
-                if django_user.check_password(password):
-                    if not django_user.is_active:
-                        messages.error(request, 'Account is disabled.')
-                        return render(request, self.template_name, {'form': form})
-                    
-                    # Get MongoDB user for session
-                    mongo_user = MongoUser.objects(email=email).first()
-                    
-                    # Use MongoDB user ID in session (if exists), otherwise use Django ID as fallback
-                    if mongo_user:
-                        request.session['user_id'] = str(mongo_user.id)
-                        token = generate_token(mongo_user)
-                        request.session['token'] = token
-                        mongo_user.last_login = datetime.utcnow()
-                        mongo_user.save()
+                user = User.objects.get(email=email)
+                if user.check_password(password):
+                    if user.is_active:
+                        auth_login(request, user)
+                        messages.success(request, f'Welcome back, {user.first_name or user.username}!')
+                        
+                        next_url = request.GET.get('next')
+                        if next_url:
+                            return redirect(next_url)
+                        return redirect('home')
                     else:
-                        request.session['user_id'] = str(django_user.id)
-                    
-                    request.session['user_email'] = django_user.email
-                    request.session['username'] = django_user.username
-                    
-                    messages.success(request, f'Welcome back, {django_user.first_name or django_user.username}!')
-                    
-                    # Login Django user
-                    auth_login(request, django_user)
-                    
-                    next_url = request.GET.get('next', 'home')
-                    return redirect(next_url)
+                        messages.error(request, 'Your account is disabled.')
                 else:
                     messages.error(request, 'Invalid email or password.')
-            except DjangoUser.DoesNotExist:
-                # Try MongoDB user as fallback
-                try:
-                    mongo_user = MongoUser.objects.get(email=email)
-                    if mongo_user.check_password(password):
-                        if not mongo_user.is_active:
-                            messages.error(request, 'Account is disabled.')
-                            return render(request, self.template_name, {'form': form})
-                        
-                        # Create Django user
-                        django_user = DjangoUser.objects.create_user(
-                            email=email,
-                            username=mongo_user.username,
-                            password=password,
-                            first_name=mongo_user.first_name,
-                            last_name=mongo_user.last_name,
-                        )
-                        
-                        request.session['user_id'] = str(mongo_user.id)
-                        request.session['user_email'] = mongo_user.email
-                        request.session['username'] = mongo_user.username
-                        
-                        token = generate_token(mongo_user)
-                        request.session['token'] = token
-                        
-                        mongo_user.last_login = datetime.utcnow()
-                        mongo_user.save()
-                        
-                        auth_login(request, django_user)
-                        
-                        messages.success(request, f'Welcome back, {mongo_user.first_name or mongo_user.username}!')
-                        
-                        next_url = request.GET.get('next', 'home')
-                        return redirect(next_url)
-                    else:
-                        messages.error(request, 'Invalid email or password.')
-                except MongoUser.DoesNotExist:
-                    messages.error(request, 'Invalid email or password.')
+            except User.DoesNotExist:
+                messages.error(request, 'Invalid email or password.')
+        
+        return render(request, self.template_name, {'form': form})
+
+
+class RegisterView(View):
+    """User registration view."""
+    
+    template_name = 'users/signup.html'
+    
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('home')
+        form = UserRegistrationForm()
+        return render(request, self.template_name, {'form': form})
+    
+    def post(self, request):
+        form = UserRegistrationForm(request.POST)
+        
+        if form.is_valid():
+            try:
+                user = User.objects.create_user(
+                    email=form.cleaned_data.get('email'),
+                    username=form.cleaned_data.get('username'),
+                    password=form.cleaned_data.get('password'),
+                    first_name=form.cleaned_data.get('first_name', ''),
+                    last_name=form.cleaned_data.get('last_name', '')
+                )
+                
+                auth_login(request, user)
+                messages.success(request, 'Account created successfully!')
+                return redirect('home')
+                
+            except Exception as e:
+                logger.error(f"Registration error: {e}", exc_info=True)
+                messages.error(request, 'An error occurred. Please try again.')
         
         return render(request, self.template_name, {'form': form})
 
@@ -322,77 +239,38 @@ class LogoutView(View):
     
     def get(self, request):
         auth_logout(request)
-        request.session.flush()
         messages.success(request, 'You have been logged out.')
-        return redirect('login')
+        return redirect('home')
 
 
+@method_decorator(login_required, name='dispatch')
 class ProfileView(View):
     """User profile view."""
     
     template_name = 'users/profile.html'
     
-    @method_decorator(login_required, name='dispatch')
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-    
     def get(self, request):
-        if not request.session.get('user_id'):
-            messages.warning(request, 'Please login to view your profile.')
-            return redirect('login')
-        
-        try:
-            # Try to get by MongoDB ObjectId first
-            from bson import ObjectId
-            try:
-                mongo_user = MongoUser.objects.get(id=ObjectId(request.session.get('user_id')))
-            except:
-                # Fallback: try to get by email
-                user_email = request.session.get('user_email')
-                if user_email:
-                    mongo_user = MongoUser.objects.get(email=user_email)
-                else:
-                    raise MongoUser.DoesNotExist()
-            
-            return render(request, self.template_name, {'user': mongo_user})
-        except (MongoUser.DoesNotExist, Exception):
-            messages.error(request, 'User not found.')
-            return redirect('login')
+        form = UserProfileForm(user=request.user)
+        return render(request, self.template_name, {'form': form})
     
     def post(self, request):
-        if not request.session.get('user_id'):
-            return redirect('login')
+        form = UserProfileForm(request.POST, user=request.user)
         
-        try:
-            from bson import ObjectId
-            try:
-                mongo_user = MongoUser.objects.get(id=ObjectId(request.session.get('user_id')))
-            except:
-                user_email = request.session.get('user_email')
-                if user_email:
-                    mongo_user = MongoUser.objects.get(email=user_email)
-                else:
-                    raise MongoUser.DoesNotExist()
-            form = UserProfileForm(request.POST)
-            
-            if form.is_valid():
-                mongo_user.first_name = form.cleaned_data['first_name']
-                mongo_user.last_name = form.cleaned_data['last_name']
-                mongo_user.phone = form.cleaned_data['phone']
-                mongo_user.save()
-                
-                # Update Django user too
-                try:
-                    django_user = DjangoUser.objects.get(email=mongo_user.email)
-                    django_user.first_name = form.cleaned_data['first_name']
-                    django_user.last_name = form.cleaned_data['last_name']
-                    django_user.save()
-                except DjangoUser.DoesNotExist:
-                    pass
-                
-                messages.success(request, 'Profile updated successfully!')
-            
-            return render(request, self.template_name, {'user': mongo_user, 'form': form})
-        except MongoUser.DoesNotExist:
-            messages.error(request, 'User not found.')
-            return redirect('login')
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('profile')
+        
+        return render(request, self.template_name, {'form': form})
+
+
+@method_decorator(login_required, name='dispatch')
+class OrderHistoryView(View):
+    """User order history view."""
+    
+    template_name = 'users/order_history.html'
+    
+    def get(self, request):
+        from orders.models import Order
+        orders = Order.objects.filter(user_id=str(request.user.id)).order_by('-created_at')
+        return render(request, self.template_name, {'orders': orders})

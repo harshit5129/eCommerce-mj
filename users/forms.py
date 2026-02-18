@@ -1,5 +1,5 @@
 from django import forms
-from users.mongo_models import User
+from users.models import User
 
 
 class UserRegistrationForm(forms.Form):
@@ -50,20 +50,20 @@ class UserRegistrationForm(forms.Form):
         if password != confirm_password:
             raise forms.ValidationError("Passwords don't match")
         
-        if len(password) < 8:
+        if password and len(password) < 8:
             raise forms.ValidationError("Password must be at least 8 characters")
         
         return cleaned_data
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if User.objects(email=email).first():
+        if User.objects.filter(email=email).exists():
             raise forms.ValidationError("Email already registered")
         return email
     
     def clean_username(self):
         username = self.cleaned_data.get('username')
-        if User.objects(username=username).first():
+        if User.objects.filter(username=username).exists():
             raise forms.ValidationError("Username already taken")
         return username
 
@@ -104,3 +104,20 @@ class UserProfileForm(forms.Form):
             'class': 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all'
         })
     )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        if self.user:
+            self.fields['first_name'].initial = self.user.first_name
+            self.fields['last_name'].initial = self.user.last_name
+            self.fields['phone'].initial = self.user.phone
+    
+    def save(self):
+        if self.user:
+            self.user.first_name = self.cleaned_data.get('first_name', '')
+            self.user.last_name = self.cleaned_data.get('last_name', '')
+            self.user.phone = self.cleaned_data.get('phone', '')
+            self.user.save()
+        return self.user

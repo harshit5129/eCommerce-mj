@@ -3,41 +3,8 @@ import logging
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.conf import settings
-import mongoengine
 
 logger = logging.getLogger(__name__)
-
-
-class MongoDBConnectionMiddleware:
-    """
-    Middleware to ensure MongoDB connection is alive before each request.
-    """
-    
-    def __init__(self, get_response):
-        self.get_response = get_response
-    
-    def __call__(self, request):
-        self._ensure_mongodb_connection()
-        response = self.get_response(request)
-        return response
-    
-    def _ensure_mongodb_connection(self):
-        """Check and reconnect to MongoDB if needed."""
-        if not settings.MONGODB_AVAILABLE:
-            return
-        
-        try:
-            conn = mongoengine.get_connection()
-            if conn:
-                return
-        except:
-            pass
-        
-        try:
-            from config.settings.base import connect_mongodb
-            connect_mongodb()
-        except Exception as e:
-            logger.error(f"Failed to reconnect to MongoDB: {e}")
 
 
 class RateLimitMiddleware:
@@ -99,13 +66,93 @@ class RateLimitMiddleware:
         return f"rate_limit:ip:{ip}"
     
     def _get_limit_for_request(self, request):
+        # Staff and superusers get highest limits
+        if request.user.is_staff or request.user.is_superuser:
+            return self.requests_limit * 10
+        
+        # Authenticated users get higher limits than anonymous
         if request.user.is_authenticated:
             return self.requests_limit * 3
         
-        if request.user.is_staff:
-            return self.requests_limit * 10
-        
+        # Anonymous users get base limit
         return self.requests_limit
+
+
+class AuthenticationRateLimitMiddleware:
+    """
+    Rate limiting specifically for authentication endpoints.
+    Prevents brute force attacks on login.
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.max_attempts = getattr(settings, 'LOGIN_RATE_LIMIT_ATTEMPTS', 5)
+        self.lockout_period = getattr(settings, 'LOGIN_RATE_LIMIT_PERIOD', 900)  # 15 minutes
+    
+    def __call__(self, request):
+        # Only apply to login-related paths
+        if self._is_login_path(request):
+            if self._is_rate_limited(request):
+                if request.path.startswith('/api/'):
+                    return JsonResponse({
+                        'error': 'Too many login attempts. Please try again later.',
+                        'retry_after': self.lockout_period
+                    }, status=429)
+                else:
+                    from django.contrib import messages
+                    messages.error(request, 'Too many login attempts. Please try again in 15 minutes.')
+                    from django.shortcuts import redirect
+                    return redirect('login')
+        
+        response = self.get_response(request)
+        
+        # Record failed login attempt
+        if self._is_login_path(request) and request.method == 'POST':
+            if response.status_code in [401, 403] or (hasattr(response, 'content') and b'error' in response.content.lower()):
+                self._record_failed_attempt(request)
+        
+        return response
+    
+    def _is_login_path(self, request):
+        """Check if this is a login/authentication path."""
+        login_paths = [
+            '/accounts/login/',
+            '/accounts/signup/',
+            '/api/users/login/',
+            '/api/users/register/',
+        ]
+        return any(request.path.startswith(path) for path in login_paths)
+    
+    def _get_client_identifier(self, request):
+        """Get unique identifier for rate limiting."""
+        # Use username if available in POST data, otherwise use IP
+        if request.method == 'POST':
+            username = request.POST.get('email') or request.POST.get('username', '')
+            if username:
+                return f"auth:user:{username.lower()}"
+        
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
+        
+        return f"auth:ip:{ip}"
+    
+    def _is_rate_limited(self, request):
+        """Check if client is currently rate limited."""
+        key = self._get_client_identifier(request)
+        attempts = cache.get(key, 0)
+        return attempts >= self.max_attempts
+    
+    def _record_failed_attempt(self, request):
+        """Record a failed authentication attempt."""
+        key = self._get_client_identifier(request)
+        attempts = cache.get(key, 0)
+        cache.set(key, attempts + 1, self.lockout_period)
+        
+        if attempts + 1 >= self.max_attempts:
+            logger.warning(f"Rate limit activated for {key}")
 
 
 class RequestLoggingMiddleware:
@@ -151,13 +198,32 @@ class SecurityHeadersMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         
+        # Basic security headers
         response['X-Content-Type-Options'] = 'nosniff'
         response['X-Frame-Options'] = 'DENY'
         response['X-XSS-Protection'] = '1; mode=block'
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        response['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response['Cross-Origin-Resource-Policy'] = 'same-origin'
         
-        if not request.is_secure():
-            response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        # Content Security Policy
+        csp_directives = [
+            "default-src 'self'",
+            "script-src 'self' https://cdn.tailwindcss.com https://code.jquery.com 'unsafe-inline'",
+            "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: https:",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'"
+        ]
+        response['Content-Security-Policy'] = '; '.join(csp_directives)
+        
+        # HSTS - only on HTTPS connections
+        if request.is_secure():
+            response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
         
         return response
 

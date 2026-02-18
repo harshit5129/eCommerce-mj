@@ -1,10 +1,27 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.contrib import messages
 from django.views import View
-from django.http import JsonResponse, Http404
-from products.models import Product
-from mongoengine.errors import DoesNotExist, ValidationError
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_protect
+from django.utils.decorators import method_decorator
+from decimal import Decimal
 import json
+import logging
+
+from products.models import Product
+
+logger = logging.getLogger(__name__)
+
+
+def validate_quantity(quantity):
+    """Validate quantity is a positive integer within reasonable limits."""
+    try:
+        qty = int(quantity)
+        if not 1 <= qty <= 999:
+            return None, 'Quantity must be between 1 and 999'
+        return qty, None
+    except (ValueError, TypeError):
+        return None, 'Invalid quantity format'
 
 
 class CartView(View):
@@ -15,6 +32,7 @@ class CartView(View):
     def get(self, request):
         cart_items = request.session.get('cart', [])
         
+        # Calculate totals
         for item in cart_items:
             item['total'] = item.get('product_price', 0) * item.get('quantity', 1)
         
@@ -33,6 +51,7 @@ class CartView(View):
         return render(request, self.template_name, context)
 
 
+@csrf_protect
 def add_to_cart(request):
     """Add product to cart via AJAX."""
     if request.method != 'POST':
@@ -41,15 +60,28 @@ def add_to_cart(request):
     try:
         data = json.loads(request.body)
         product_id = data.get('product_id')
-        quantity = int(data.get('quantity', 1))
         
-        if quantity < 1:
-            return JsonResponse({'error': 'Invalid quantity'}, status=400)
+        # Validate product_id
+        if not product_id:
+            return JsonResponse({'error': 'Product ID is required'}, status=400)
         
-        product = Product.objects(id=product_id, is_active=True).first()
-        if not product:
+        try:
+            product_id = int(product_id)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Invalid product ID'}, status=400)
+        
+        # Validate quantity
+        quantity, error = validate_quantity(data.get('quantity', 1))
+        if error:
+            return JsonResponse({'error': error}, status=400)
+        
+        # Get product
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
             return JsonResponse({'error': 'Product not found'}, status=404)
         
+        # Check stock
         if product.track_inventory and product.stock_quantity < quantity:
             return JsonResponse({
                 'error': f'Only {product.stock_quantity} items available in stock'
@@ -57,6 +89,7 @@ def add_to_cart(request):
         
         cart = request.session.get('cart', [])
         
+        # Check if item already in cart
         existing_item = None
         for item in cart:
             if item.get('product_id') == str(product.id):
@@ -77,7 +110,7 @@ def add_to_cart(request):
                 'product_slug': product.slug,
                 'product_name': product.name,
                 'product_price': float(product.price),
-                'product_image': primary_image.url if primary_image else None,
+                'product_image': primary_image.url if primary_image else '',
                 'quantity': quantity,
             })
         
@@ -92,12 +125,14 @@ def add_to_cart(request):
             'cart_count': cart_count,
         })
     
-    except (DoesNotExist, ValidationError):
-        return JsonResponse({'error': 'Product not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        logger.error(f"Add to cart error: {e}", exc_info=True)
+        return JsonResponse({'error': 'An error occurred'}, status=500)
 
 
+@csrf_protect
 def update_cart_item(request):
     """Update cart item quantity via AJAX."""
     if request.method != 'POST':
@@ -106,29 +141,46 @@ def update_cart_item(request):
     try:
         data = json.loads(request.body)
         product_id = data.get('product_id')
-        quantity = int(data.get('quantity', 1))
+        
+        if not product_id:
+            return JsonResponse({'error': 'Product ID is required'}, status=400)
+        
+        # Validate quantity
+        quantity, error = validate_quantity(data.get('quantity', 1))
+        if error:
+            return JsonResponse({'error': error}, status=400)
         
         if quantity < 1:
             return remove_from_cart(request)
         
         cart = request.session.get('cart', [])
         
-        product = Product.objects(id=product_id, is_active=True).first()
-        if not product:
+        # Get product
+        try:
+            product_id_int = int(product_id)
+            product = Product.objects.get(id=product_id_int, is_active=True)
+        except (ValueError, Product.DoesNotExist):
             return JsonResponse({'error': 'Product not found'}, status=404)
         
+        # Check stock
         if product.track_inventory and product.stock_quantity < quantity:
             return JsonResponse({
                 'error': f'Only {product.stock_quantity} items available in stock'
             }, status=400)
         
+        # Update item
         item_total = 0
+        item_found = False
         for item in cart:
-            if item.get('product_id') == product_id:
+            if item.get('product_id') == str(product_id):
                 item['quantity'] = quantity
                 item['total'] = item.get('product_price', 0) * quantity
                 item_total = item['total']
+                item_found = True
                 break
+        
+        if not item_found:
+            return JsonResponse({'error': 'Item not found in cart'}, status=404)
         
         request.session['cart'] = cart
         request.session.modified = True
@@ -143,12 +195,14 @@ def update_cart_item(request):
             'item_total': item_total,
         })
     
-    except (DoesNotExist, ValidationError):
-        return JsonResponse({'error': 'Product not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        logger.error(f"Update cart error: {e}", exc_info=True)
+        return JsonResponse({'error': 'An error occurred'}, status=500)
 
 
+@csrf_protect
 def remove_from_cart(request):
     """Remove item from cart via AJAX."""
     if request.method != 'POST':
@@ -158,8 +212,15 @@ def remove_from_cart(request):
         data = json.loads(request.body)
         product_id = data.get('product_id')
         
+        if not product_id:
+            return JsonResponse({'error': 'Product ID is required'}, status=400)
+        
         cart = request.session.get('cart', [])
-        cart = [item for item in cart if item.get('product_id') != product_id]
+        original_count = len(cart)
+        cart = [item for item in cart if item.get('product_id') != str(product_id)]
+        
+        if len(cart) == original_count:
+            return JsonResponse({'error': 'Item not found in cart'}, status=404)
         
         request.session['cart'] = cart
         request.session.modified = True
@@ -174,10 +235,14 @@ def remove_from_cart(request):
             'cart_count': cart_count,
         })
     
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        logger.error(f"Remove from cart error: {e}", exc_info=True)
+        return JsonResponse({'error': 'An error occurred'}, status=500)
 
 
+@csrf_protect
 def clear_cart(request):
     """Clear all items from cart."""
     if request.method != 'POST':

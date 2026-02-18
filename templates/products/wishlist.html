@@ -59,7 +59,7 @@
                     
                     <div class="flex items-center gap-2">
                         {% if product.in_stock %}
-                            <button onclick="addToCart('{{ product.id }}', '{{ product.name }}', {{ product.price }}, '{{ product.primary_image.url|default:'' }}')"
+                            <button onclick="addToCart('{{ product.id }}', 1)"
                                     class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors text-sm">
                                 Add to Cart
                             </button>

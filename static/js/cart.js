@@ -264,8 +264,37 @@ function clearCart() {
     }
 }
 
-function toggleWishlist(productId, productName, productImage, productPrice, productSlug) {
-    Wishlist.toggle(productId, productName, productImage, productPrice, productSlug);
+function toggleWishlist(productId) {
+    $.ajax({
+        url: '/wishlist/toggle/' + productId + '/',
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        },
+        success: function(response) {
+            if (response.success) {
+                Cart.showNotification(response.message, response.action === 'added' ? 'success' : 'info');
+                // Update wishlist count in header
+                const badge = $('.wishlist-count');
+                if (badge.length) {
+                    badge.text(response.count);
+                    if (response.count > 0) {
+                        badge.removeClass('hidden');
+                    } else {
+                        badge.addClass('hidden');
+                    }
+                }
+            }
+        },
+        error: function(xhr) {
+            let error = 'An error occurred';
+            try {
+                const response = JSON.parse(xhr.responseText);
+                error = response.error || error;
+            } catch (e) {}
+            Cart.showNotification(error, 'error');
+        }
+    });
 }
 
 function cancelOrder(orderNumber) {

@@ -206,14 +206,100 @@
             0% { transform: scale(1); opacity: 1; }
             100% { transform: scale(1.1); opacity: 0; }
         }
+        
+        /* Skip to main content link for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #3b82f6;
+            color: white;
+            padding: 8px 16px;
+            z-index: 100;
+            transition: top 0.3s;
+        }
+        .skip-link:focus {
+            top: 0;
+        }
+        
+        /* Responsive Media Queries */
+        @media (max-width: 640px) {
+            .gradient-text {
+                font-size: 1.5rem;
+            }
+            .card-hover:hover {
+                transform: none;
+            }
+            .card-3d:hover .card-3d-inner {
+                transform: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .card-hover:hover {
+                transform: none;
+            }
+            .btn-gradient:hover {
+                transform: none;
+            }
+        }
+        
+        /* Touch device optimizations */
+        @media (hover: none) {
+            .card-hover:hover {
+                transform: none;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            }
+            .btn-gradient:hover {
+                transform: none;
+            }
+            .card-3d:hover .card-3d-inner {
+                transform: none;
+            }
+        }
+        
+        /* Reduced motion preference */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .card-hover:hover {
+                transform: none;
+            }
+            .shimmer-effect::after {
+                animation: none;
+            }
+        }
+        
+        /* High contrast mode */
+        @media (prefers-contrast: high) {
+            .btn-gradient {
+                border: 2px solid currentColor;
+            }
+        }
+        
+        /* Print styles */
+        @media print {
+            .glass-effect {
+                background: white !important;
+            }
+            header, footer, .no-print {
+                display: none !important;
+            }
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col font-sans">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     {% include 'partials/header.html' %}
     
-    <main class="flex-grow">
+    <main id="main-content" role="main" class="flex-grow">
         {% if messages %}
             <div class="container mx-auto px-4 py-4">
                 {% for message in messages %}

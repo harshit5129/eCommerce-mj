@@ -387,6 +387,18 @@ class OrderSuccessView(View):
             messages.error(request, 'Order not found.')
             return redirect('home')
         
+        # Security: Verify user is authorized to view this order
+        if request.user.is_authenticated:
+            if order.user_id != str(request.user.id) and not request.user.is_staff:
+                messages.error(request, 'You are not authorized to view this order.')
+                return redirect('home')
+        else:
+            # For guest orders, verify session has pending order number matching
+            pending_order = request.session.get('pending_order_number')
+            if pending_order != order_number:
+                messages.error(request, 'Please login to view order details.')
+                return redirect('login')
+        
         if order.payment_status == 'pending':
             messages.warning(request, 'Payment is pending for this order.')
         

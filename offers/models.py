@@ -107,6 +107,15 @@ class Coupon(models.Model):
             if existing_orders:
                 return False, "This coupon is only for first-time customers"
         
+        # Check per-user usage limit
+        if self.per_user_limit > 0 and user_email:
+            usage_count = CouponUsage.objects.filter(
+                coupon=self, 
+                user_email=user_email
+            ).count()
+            if usage_count >= self.per_user_limit:
+                return False, f"You have reached the usage limit for this coupon ({self.per_user_limit}x)"
+        
         return True, "Valid"
 
 

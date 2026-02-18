@@ -8,14 +8,28 @@ from django.utils.decorators import method_decorator
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.crypto import get_random_string
+from django.views.decorators.csrf import csrf_protect
+from django.utils.decorators import method_decorator
+from django.http import JsonResponse
 import jwt
 import os
 import logging
+import re
 
 from users.models import User
 from users.forms import UserRegistrationForm, UserLoginForm, UserProfileForm
 
 logger = logging.getLogger(__name__)
+
+
+def is_safe_url(url, allowed_hosts=None):
+    """Validate that URL is safe for redirect."""
+    if not url:
+        return False
+    # Only allow relative URLs or same-domain URLs
+    if url.startswith('/') and not url.startswith('//'):
+        return True
+    return False
 
 
 def generate_token(user):
@@ -182,11 +196,19 @@ class LoginView(View):
                 user = User.objects.get(email=email)
                 if user.check_password(password):
                     if user.is_active:
+                        # Regenerate session to prevent session fixation
+                        old_session = request.session.get('cart', [])
+                        request.session.cycle_key()
+                        if old_session:
+                            request.session['cart'] = old_session
+                            request.session.modified = True
+                        
                         auth_login(request, user)
                         messages.success(request, f'Welcome back, {user.first_name or user.username}!')
                         
+                        # Safe redirect validation
                         next_url = request.GET.get('next')
-                        if next_url:
+                        if next_url and is_safe_url(next_url):
                             return redirect(next_url)
                         return redirect('home')
                     else:
@@ -234,12 +256,26 @@ class RegisterView(View):
         return render(request, self.template_name, {'form': form})
 
 
+@method_decorator(csrf_protect, name='dispatch')
 class LogoutView(View):
-    """User logout view."""
+    """User logout view - POST only for security."""
+    
+    def post(self, request):
+        # Preserve cart before logout
+        cart = request.session.get('cart', [])
+        
+        auth_logout(request)
+        
+        # Restore cart for guest session
+        request.session['cart'] = cart
+        request.session.modified = True
+        
+        messages.success(request, 'You have been logged out.')
+        return redirect('home')
     
     def get(self, request):
-        auth_logout(request)
-        messages.success(request, 'You have been logged out.')
+        # Redirect GET requests to home with message
+        messages.warning(request, 'Please use the logout button to log out.')
         return redirect('home')
 
 

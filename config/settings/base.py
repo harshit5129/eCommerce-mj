@@ -102,27 +102,41 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MongoDB Configuration using MongoEngine
 import mongoengine
+
+MONGODB_URI = os.getenv('MONGODB_URI', '')
 MONGODB_HOST = os.getenv('MONGODB_HOST', 'localhost')
 MONGODB_PORT = int(os.getenv('MONGODB_PORT', 27017))
 MONGODB_NAME = os.getenv('MONGODB_NAME', 'ecomm_db')
 
-# Flag to check if MongoDB is available
 MONGODB_AVAILABLE = False
 
 try:
-    mongoengine.connect(
-        db=MONGODB_NAME,
-        host=MONGODB_HOST,
-        port=MONGODB_PORT,
-        alias='default',
-        serverSelectionTimeoutMS=3000
-    )
+    if MONGODB_URI:
+        mongoengine.connect(
+            host=MONGODB_URI,
+            alias='default',
+            serverSelectionTimeoutMS=5000,
+            uuidRepresentation='standard'
+        )
+        db_name = MONGODB_URI.split('/')[-1].split('?')[0] or MONGODB_NAME
+        print(f"✓ MongoDB Atlas connected successfully to database: {db_name}")
+    else:
+        mongoengine.connect(
+            db=MONGODB_NAME,
+            host=MONGODB_HOST,
+            port=MONGODB_PORT,
+            alias='default',
+            serverSelectionTimeoutMS=3000
+        )
+        print(f"✓ MongoDB connected successfully to: {MONGODB_HOST}:{MONGODB_PORT}/{MONGODB_NAME}")
+    
     MONGODB_AVAILABLE = True
-    print("✓ MongoDB connected successfully")
+    
 except Exception as e:
     print(f"⚠ Warning: Could not connect to MongoDB: {e}")
     print("  The application will run with limited functionality.")
-    print("  Please install and start MongoDB for full features.")
+    print("  Please check your MongoDB connection settings.")
+    MONGODB_AVAILABLE = False
 
 # Custom User Model (Django auth)
 AUTH_USER_MODEL = 'users.DjangoUser'

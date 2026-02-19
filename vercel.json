@@ -4,27 +4,19 @@
     {
       "src": "wsgi.py",
       "use": "@vercel/python"
-    },
-    {
-      "src": "build.sh",
-      "use": "@vercel/bash"
     }
   ],
   "routes": [
     {
       "src": "/static/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
       "dest": "/static/$1"
-    },
-    {
-      "src": "/media/(.*)",
-      "dest": "/media/$1"
     },
     {
       "src": "/(.*)",
       "dest": "wsgi.py"
     }
-  ],
-  "env": {
-    "DJANGO_SETTINGS_MODULE": "config.settings.vercel"
-  }
+  ]
 }

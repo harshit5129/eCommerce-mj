@@ -37,16 +37,39 @@ class CartView(View):
             item['total'] = item.get('product_price', 0) * item.get('quantity', 1)
         
         cart_total = sum(item.get('total', 0) for item in cart_items)
+        
+        # Get applied coupon from session
+        coupon_data = request.session.get('applied_coupon', {})
+        coupon_code = coupon_data.get('code') if coupon_data else None
+        
+        # Get user email for coupon validation
+        user_email = request.user.email if request.user.is_authenticated else None
+        
+        # Calculate discount
+        discount = 0
+        if coupon_code and user_email:
+            from offers.models import Coupon
+            try:
+                coupon = Coupon.objects.get(code=coupon_code.upper(), is_active=True)
+                can_use, _ = coupon.can_use(user_email)
+                if can_use and coupon.is_valid:
+                    discount = coupon.calculate_discount(cart_total)
+                    discount = min(discount, cart_total)
+            except Coupon.DoesNotExist:
+                pass
+        
         shipping_cost = 0 if cart_total >= 4000 else 99
         tax = cart_total * 0.18
-        order_total = cart_total + shipping_cost + tax
+        order_total = cart_total + shipping_cost + tax - discount
         
         context = {
             'cart_items': cart_items,
             'cart_total': cart_total,
             'shipping_cost': shipping_cost,
             'tax': tax,
+            'discount': discount,
             'order_total': order_total,
+            'coupon_code': coupon_code,
         }
         return render(request, self.template_name, context)
 

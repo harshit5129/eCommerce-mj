@@ -156,6 +156,13 @@
                                 <span>Subtotal</span>
                                 <span class="font-semibold text-gray-200">{{ cart_total|rupee }}</span>
                             </div>
+                            {% if discount > 0 %}
+                            <div class="flex justify-between text-secondary-400">
+                                <span>Discount {% if coupon_code %}({{ coupon_code }}){% endif %}</span>
+                                <span class="font-semibold">-{{ discount|rupee }}</span>
+                            </div>
+                            <input type="hidden" name="coupon_code" value="{{ coupon_code }}">
+                            {% endif %}
                             <div class="flex justify-between text-gray-400">
                                 <span>Shipping</span>
                                 <span class="font-semibold">

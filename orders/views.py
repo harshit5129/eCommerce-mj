@@ -221,7 +221,17 @@ class CheckoutView(View):
             messages.warning(request, 'Your cart is empty.')
             return redirect('cart')
         
-        subtotal, shipping, tax, discount, total = calculate_order_totals(cart)
+        # Get applied coupon from session
+        coupon_data = request.session.get('applied_coupon', {})
+        coupon_code = coupon_data.get('code') if coupon_data else None
+        
+        # Get user email for coupon validation
+        user_email = request.user.email if request.user.is_authenticated else None
+        
+        # Calculate totals with coupon
+        subtotal, shipping, tax, discount, total = calculate_order_totals(
+            cart, coupon_code=coupon_code, user_email=user_email
+        )
         
         user = None
         if request.user.is_authenticated:
@@ -232,8 +242,10 @@ class CheckoutView(View):
             'cart_total': float(subtotal),
             'shipping_cost': float(shipping),
             'tax': float(tax),
+            'discount': float(discount),
             'total': float(total),
             'user': user,
+            'coupon_code': coupon_code,
         }
         return render(request, self.template_name, context)
     

@@ -78,7 +78,7 @@ class AddToCartAPIView(APIView):
                 'product_id': str(product.id),
                 'product_name': product.name,
                 'product_price': float(product.price),
-                'product_image': primary_image.url if primary_image else '',
+                'product_image': primary_image.image.url if primary_image and primary_image.image else '',
                 'quantity': quantity,
             })
         

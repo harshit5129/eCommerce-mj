@@ -45,8 +45,9 @@ class CartView(View):
         # Get user email for coupon validation
         user_email = request.user.email if request.user.is_authenticated else None
         
-        # Calculate discount
+        # Calculate discount only if user is authenticated and coupon exists
         discount = 0
+        valid_coupon = None
         if coupon_code and user_email:
             from offers.models import Coupon
             try:
@@ -55,8 +56,22 @@ class CartView(View):
                 if can_use and coupon.is_valid:
                     discount = coupon.calculate_discount(cart_total)
                     discount = min(discount, cart_total)
+                    valid_coupon = coupon
+                else:
+                    # Coupon is not valid for this user, clear it from session
+                    del request.session['applied_coupon']
+                    request.session.modified = True
+                    coupon_code = None
             except Coupon.DoesNotExist:
-                pass
+                # Coupon doesn't exist, clear it from session
+                del request.session['applied_coupon']
+                request.session.modified = True
+                coupon_code = None
+        elif coupon_code and not user_email:
+            # User not logged in but has coupon in session - clear it
+            del request.session['applied_coupon']
+            request.session.modified = True
+            coupon_code = None
         
         shipping_cost = 0 if cart_total >= 4000 else 99
         tax = cart_total * 0.18
@@ -69,7 +84,7 @@ class CartView(View):
             'tax': tax,
             'discount': discount,
             'order_total': order_total,
-            'coupon_code': coupon_code,
+            'coupon_code': coupon_code if valid_coupon else None,
         }
         return render(request, self.template_name, context)
 

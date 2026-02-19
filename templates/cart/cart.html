@@ -72,17 +72,10 @@
                                 <span>Subtotal</span>
                                 <span class="font-semibold text-gray-200" id="cart-subtotal">{{ cart_total|rupee }}</span>
                             </div>
-                            {% if discount > 0 %}
-                            <div class="flex justify-between text-secondary-400" id="discount-row">
+                            <div id="discount-row" class="flex justify-between text-secondary-400" style="{% if discount > 0 %}display: flex;{% else %}display: none;{% endif %}">
                                 <span>Discount {% if coupon_code %}({{ coupon_code }}){% endif %}</span>
-                                <span class="font-semibold" id="cart-discount">-{{ discount|rupee }}</span>
+                                <span class="font-semibold" id="cart-discount">{% if discount > 0 %}-{{ discount|rupee }}{% else %}-₹0{% endif %}</span>
                             </div>
-                            {% else %}
-                            <div id="discount-row" class="hidden flex justify-between text-secondary-400">
-                                <span>Discount</span>
-                                <span class="font-semibold" id="cart-discount">-₹0</span>
-                            </div>
-                            {% endif %}
                             <div class="flex justify-between text-gray-400">
                                 <span>Shipping</span>
                                 <span class="font-semibold text-gray-200" id="cart-shipping">
@@ -145,10 +138,10 @@ window.updateCartTotals = function(discount) {
     const cartDiscount = document.getElementById('cart-discount');
     
     if (discount > 0) {
-        discountRow.classList.remove('hidden');
+        discountRow.style.display = 'flex';
         cartDiscount.textContent = '-₹' + discount.toLocaleString('en-IN', {maximumFractionDigits: 0});
     } else {
-        discountRow.classList.add('hidden');
+        discountRow.style.display = 'none';
     }
     
     // Update total

@@ -1,9 +1,11 @@
 from datetime import datetime
 import uuid
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.pagination import PageNumberPagination
 from django.db import transaction
 from django.db.models import F
 
@@ -12,15 +14,30 @@ from orders.serializers import OrderSerializer, CreateOrderSerializer
 from products.models import Product
 
 
+class OrderPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class OrderListAPIView(APIView):
     """
-    List user's orders.
+    List user's orders with pagination.
     """
     permission_classes = [IsAuthenticated]
+    pagination_class = OrderPagination
     
     def get(self, request):
         user_id = str(request.user.id)
         orders = Order.objects.filter(user_id=user_id).order_by('-created_at')
+        
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(orders, request)
+        
+        if page is not None:
+            return paginator.get_paginated_response([
+                OrderSerializer(order).data for order in page
+            ])
         
         return Response({
             'orders': [OrderSerializer(order).data for order in orders],
@@ -76,7 +93,7 @@ class CreateOrderAPIView(APIView):
         discount = float(serializer.validated_data.get('discount', 0))
         total = cart_total + shipping_cost + tax - discount
         
-        order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        order_number = f"ORD-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         user_id = str(request.user.id) if hasattr(request.user, 'id') and request.user.is_authenticated else 'guest'
         
         with transaction.atomic():
@@ -176,7 +193,7 @@ class CancelOrderAPIView(APIView):
                 )
             
             order.order_status = 'cancelled'
-            order.cancelled_at = datetime.utcnow()
+            order.cancelled_at = timezone.now()
             order.save()
         
         return Response({

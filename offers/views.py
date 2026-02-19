@@ -13,6 +13,22 @@ from orders.models import Order
 
 logger = logging.getLogger(__name__)
 
+COUPON_RATE_LIMIT = 5
+COUPON_RATE_LIMIT_PERIOD = 300
+
+
+def check_coupon_rate_limit(request):
+    ip_address = request.META.get('REMOTE_ADDR', 'unknown')
+    session_key = request.session.session_key or 'anonymous'
+    rate_limit_key = f"coupon_rate:{session_key}:{ip_address}"
+    
+    attempts = cache.get(rate_limit_key, 0)
+    if attempts >= COUPON_RATE_LIMIT:
+        return False, attempts
+    
+    cache.set(rate_limit_key, attempts + 1, COUPON_RATE_LIMIT_PERIOD)
+    return True, attempts + 1
+
 
 def validate_id(id_string):
     """Validate that ID is a valid integer."""
@@ -40,6 +56,12 @@ class ApplyCouponView(View):
     """Apply coupon to cart."""
     
     def post(self, request):
+        allowed, attempts = check_coupon_rate_limit(request)
+        if not allowed:
+            return JsonResponse({
+                'error': f'Too many coupon attempts. Please try again later. ({attempts}/{COUPON_RATE_LIMIT})'
+            }, status=429)
+        
         try:
             data = parse_json_body(request)
             code = data.get('code', '').strip().upper()[:50]
@@ -143,46 +165,73 @@ class ActiveOffersView(View):
 
 @method_decorator(csrf_protect, name='dispatch')
 class SubmitReviewView(View):
-    """Submit a product review."""
+    """Submit a product review with media uploads."""
+    
+    MAX_IMAGES = 5
+    MAX_VIDEOS = 2
+    MAX_IMAGE_SIZE = 5 * 1024 * 1024
+    MAX_VIDEO_SIZE = 50 * 1024 * 1024
     
     def post(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({'error': 'Please login to submit a review'}, status=401)
         
         try:
-            data = parse_json_body(request)
-            
-            product_id = validate_id(data.get('product_id'))
+            product_id = validate_id(request.POST.get('product_id'))
             if not product_id:
                 return JsonResponse({'error': 'Invalid product ID'}, status=400)
             
             try:
-                rating = int(data.get('rating'))
+                rating = int(request.POST.get('rating'))
                 if not 1 <= rating <= 5:
                     raise ValueError()
             except (ValueError, TypeError):
                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
             
-            title = data.get('title', '').strip()[:100]
-            review_text = data.get('review', '').strip()[:2000]
-            pros = [p[:100] for p in data.get('pros', [])[:10] if p]
-            cons = [c[:100] for c in data.get('cons', [])[:10] if c]
+            title = request.POST.get('title', '').strip()[:100]
+            review_text = request.POST.get('review', '').strip()[:2000]
+            pros = [p[:100] for p in request.POST.getlist('pros')[:10] if p]
+            cons = [c[:100] for c in request.POST.getlist('cons')[:10] if c]
             
-            # Check if product exists
             from products.models import Product
             if not Product.objects.filter(id=product_id, is_active=True).exists():
                 return JsonResponse({'error': 'Product not found'}, status=404)
             
-            # Check for existing review
             if ProductReview.objects.filter(product_id=product_id, user_email=request.user.email).exists():
                 return JsonResponse({'error': 'You have already reviewed this product'}, status=400)
             
-            # Check for verified purchase - optimized query
             is_verified = Order.objects.filter(
                 user_id=str(request.user.id),
                 order_status__in=['delivered', 'shipped'],
                 items__product_id=product_id
             ).exists()
+            
+            images = []
+            videos = []
+            
+            for i, img in enumerate(request.FILES.getlist('images')[:self.MAX_IMAGES]):
+                if img.size > self.MAX_IMAGE_SIZE:
+                    return JsonResponse({'error': f'Image {i+1} exceeds 5MB limit'}, status=400)
+                if not img.content_type.startswith('image/'):
+                    return JsonResponse({'error': f'File {i+1} is not a valid image'}, status=400)
+                from django.core.files.storage import default_storage
+                import uuid
+                ext = img.name.split('.')[-1].lower()
+                filename = f'reviews/{uuid.uuid4().hex}.{ext}'
+                saved_path = default_storage.save(filename, img)
+                images.append(default_storage.url(saved_path))
+            
+            for i, vid in enumerate(request.FILES.getlist('videos')[:self.MAX_VIDEOS]):
+                if vid.size > self.MAX_VIDEO_SIZE:
+                    return JsonResponse({'error': f'Video {i+1} exceeds 50MB limit'}, status=400)
+                if not vid.content_type.startswith('video/'):
+                    return JsonResponse({'error': f'File {i+1} is not a valid video'}, status=400)
+                from django.core.files.storage import default_storage
+                import uuid
+                ext = vid.name.split('.')[-1].lower()
+                filename = f'reviews/videos/{uuid.uuid4().hex}.{ext}'
+                saved_path = default_storage.save(filename, vid)
+                videos.append(default_storage.url(saved_path))
             
             review = ProductReview.objects.create(
                 product_id=product_id,
@@ -193,8 +242,17 @@ class SubmitReviewView(View):
                 review=review_text,
                 pros=pros,
                 cons=cons,
+                images=images,
+                videos=videos,
                 is_verified_purchase=is_verified
             )
+            
+            from users.models import Notification
+            try:
+                product = Product.objects.get(id=product_id)
+                Notification.create_review_notification(product.name, request.user.get_full_name() or request.user.username)
+            except:
+                pass
             
             logger.info(f"Review submitted by {request.user.email} for product {product_id}")
             
@@ -266,7 +324,7 @@ def get_product_reviews(request, product_id):
         is_approved=True
     ).order_by('-helpful_count', '-created_at').values(
         'id', 'user_name', 'rating', 'title', 'review',
-        'images', 'is_verified_purchase', 'helpful_count',
+        'images', 'videos', 'is_verified_purchase', 'helpful_count',
         'pros', 'cons', 'created_at'
     )[:50]
     
@@ -279,6 +337,7 @@ def get_product_reviews(request, product_id):
             'title': r['title'],
             'review': r['review'],
             'images': r['images'] or [],
+            'videos': r['videos'] or [],
             'is_verified': r['is_verified_purchase'],
             'helpful_count': r['helpful_count'],
             'pros': r['pros'] or [],

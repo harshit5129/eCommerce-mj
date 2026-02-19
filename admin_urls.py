@@ -3,10 +3,12 @@ from admin_views import (
     AdminDashboardView,
     AdminUserListView, AdminUserCreateView, AdminUserEditView, AdminUserDeleteView,
     AdminProductListView, AdminProductCreateView, AdminProductEditView, AdminProductDeleteView, AdminProductStatusUpdateView,
+    AdminProductImageDeleteView, AdminProductImageSetPrimaryView,
     AdminOrderListView, AdminOrderDetailView, AdminOrderUpdateView,
     AdminCouponListView, AdminCouponCreateView, AdminCouponEditView, AdminCouponDeleteView,
     AdminOfferListView, AdminOfferCreateView, AdminOfferEditView, AdminOfferDeleteView,
-    AdminReviewListView, AdminReviewApproveView
+    AdminReviewListView, AdminReviewApproveView, AdminReviewExportView,
+    AdminNotificationListView, AdminNotificationMarkReadView, AdminNotificationMarkAllReadView
 )
 from analytics.views import AnalyticsDashboardView
 
@@ -23,6 +25,8 @@ urlpatterns = [
     path('products/edit/<str:product_id>/', AdminProductEditView.as_view(), name='admin_product_edit'),
     path('products/delete/<str:product_id>/', AdminProductDeleteView.as_view(), name='admin_product_delete'),
     path('products/status/<str:product_id>/', AdminProductStatusUpdateView.as_view(), name='admin_product_status'),
+    path('products/images/<str:image_id>/delete/', AdminProductImageDeleteView.as_view(), name='admin_product_image_delete'),
+    path('products/images/<str:image_id>/primary/', AdminProductImageSetPrimaryView.as_view(), name='admin_product_image_primary'),
     
     path('orders/', AdminOrderListView.as_view(), name='admin_orders'),
     path('orders/<str:order_number>/', AdminOrderDetailView.as_view(), name='admin_order_detail'),
@@ -42,4 +46,9 @@ urlpatterns = [
     
     path('reviews/', AdminReviewListView.as_view(), name='admin_reviews'),
     path('reviews/approve/<str:review_id>/', AdminReviewApproveView.as_view(), name='admin_review_approve'),
+    path('reviews/export/', AdminReviewExportView.as_view(), name='admin_reviews_export'),
+    
+    path('notifications/', AdminNotificationListView.as_view(), name='admin_notifications'),
+    path('notifications/<str:notification_id>/read/', AdminNotificationMarkReadView.as_view(), name='admin_notification_read'),
+    path('notifications/mark-all-read/', AdminNotificationMarkAllReadView.as_view(), name='admin_notifications_mark_all_read'),
 ]

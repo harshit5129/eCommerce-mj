@@ -86,6 +86,9 @@ class Address(models.Model):
     class Meta:
         db_table = 'user_addresses'
         ordering = ['-is_default', '-created_at']
+        indexes = [
+            models.Index(fields=['user', 'address_type', 'is_default']),
+        ]
     
     def __str__(self):
         return f"{self.street}, {self.city}"
@@ -135,6 +138,9 @@ class CartItem(models.Model):
         db_table = 'cart_items'
         unique_together = ['user', 'product_id']
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'updated_at']),
+        ]
     
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"
@@ -175,6 +181,66 @@ class AdminAuditLog(models.Model):
     class Meta:
         db_table = 'admin_audit_logs'
         ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user_id']),
+            models.Index(fields=['model', '-timestamp']),
+        ]
     
     def __str__(self):
         return f"{self.action} {self.model} by {self.user_email}"
+
+
+class Notification(models.Model):
+    """Admin notification model."""
+    
+    NOTIFICATION_TYPES = [
+        ('order', 'Order'),
+        ('review', 'Review'),
+        ('user', 'User'),
+        ('product', 'Product'),
+        ('system', 'System'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='system')
+    link = models.CharField(max_length=500, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'notifications'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_read', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return self.title
+    
+    @classmethod
+    def create_order_notification(cls, order_number, message):
+        return cls.objects.create(
+            title=f"New Order: {order_number}",
+            message=message,
+            notification_type='order',
+            link=f"/my-admin/orders/{order_number}/"
+        )
+    
+    @classmethod
+    def create_review_notification(cls, product_name, user_name):
+        return cls.objects.create(
+            title=f"New Review",
+            message=f"{user_name} reviewed {product_name}",
+            notification_type='review',
+            link="/my-admin/reviews/"
+        )
+    
+    @classmethod
+    def create_user_notification(cls, user_email):
+        return cls.objects.create(
+            title="New User Registration",
+            message=f"New user registered: {user_email}",
+            notification_type='user',
+            link="/my-admin/users/"
+        )

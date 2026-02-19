@@ -1,151 +1,133 @@
-from django.shortcuts import render, redirect
+import json
+import logging
+from django.shortcuts import render
 from django.views import View
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
-from datetime import datetime
-import json
+from django.core.cache import cache
+from django.db import models
+from django.conf import settings
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.utils.decorators import method_decorator
 
-from products.models import Product
-from orders.models import Order
+logger = logging.getLogger(__name__)
+
+
+def is_staff_user(user):
+    return user.is_authenticated and (user.is_staff or user.is_superuser)
 
 
 class AnalyticsEvent:
-    """Simple analytics event storage using MongoDB."""
+    """Simple analytics event storage using cache/database."""
     
     @staticmethod
     def track(event_type, data, request=None):
-        """Track an analytics event."""
-        from mongoengine import Document, StringField, DictField, DateTimeField
-        
-        class Event(Document):
-            event_type = StringField(required=True)
-            data = DictField(default=dict)
-            session_id = StringField()
-            user_id = StringField()
-            user_agent = StringField()
-            ip_address = StringField()
-            created_at = DateTimeField(default=datetime.utcnow)
-            
-            meta = {'collection': 'analytics_events'}
-        
-        event = Event(
-            event_type=event_type,
-            data=data,
-        )
-        
-        if request:
-            event.session_id = request.session.session_key or request.session.get('user_id', 'anonymous')
-            event.user_id = str(request.session.get('user_id', 'anonymous'))
-            event.user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
-            event.ip_address = request.META.get('REMOTE_ADDR', '')
-            
-            if not request.session.session_key:
-                request.session.create()
+        """Track an analytics event - stored in cache with periodic flush to database."""
+        event = {
+            'event_type': event_type,
+            'data': data,
+            'session_id': request.session.session_key if request else None,
+            'user_id': str(request.user.id) if request and request.user.is_authenticated else None,
+            'user_agent': request.META.get('HTTP_USER_AGENT', '')[:500] if request else None,
+            'ip_address': request.META.get('REMOTE_ADDR', '') if request else None,
+        }
         
         try:
-            event.save()
+            # Store in cache list (for batching)
+            cache_key = 'analytics_events_pending'
+            events = cache.get(cache_key, [])
+            events.append(event)
+            # Keep last 1000 events in cache
+            if len(events) > 1000:
+                events = events[-1000:]
+            cache.set(cache_key, events, 86400)  # 24 hours
+            
+            # Increment counters
+            counter_key = f'analytics:counter:{event_type}'
+            cache.incr(counter_key) if cache.get(counter_key) else cache.set(counter_key, 1, 86400)
+            
             return True
-        except:
+        except Exception as e:
+            logger.error(f"Analytics tracking failed: {e}")
             return False
 
 
-@csrf_exempt
-def track_page_view(request):
-    """Track a page view."""
-    if request.method == 'POST':
+@method_decorator(csrf_protect, name='dispatch')
+class TrackPageViewView(View):
+    """Track a page view with CSRF protection."""
+    
+    def post(self, request):
         try:
             data = json.loads(request.body)
             AnalyticsEvent.track('page_view', {
-                'path': data.get('path', ''),
-                'title': data.get('title', ''),
-                'referrer': data.get('referrer', ''),
+                'path': data.get('path', '')[:500],
+                'title': data.get('title', '')[:200],
+                'referrer': data.get('referrer', '')[:500],
             }, request)
             return JsonResponse({'success': True})
-        except:
+        except Exception as e:
+            logger.error(f"Page view tracking failed: {e}")
             return JsonResponse({'success': False}, status=400)
-    return JsonResponse({'error': 'Invalid method'}, status=405)
 
 
-@csrf_exempt
-def track_event(request):
-    """Track a custom event."""
-    if request.method == 'POST':
+@method_decorator(csrf_protect, name='dispatch')
+class TrackEventView(View):
+    """Track a custom event with CSRF protection."""
+    
+    def post(self, request):
         try:
             data = json.loads(request.body)
             AnalyticsEvent.track(
-                data.get('event_type', 'custom'),
+                data.get('event_type', 'custom')[:50],
                 data.get('data', {}),
                 request
             )
             return JsonResponse({'success': True})
-        except:
+        except Exception as e:
+            logger.error(f"Event tracking failed: {e}")
             return JsonResponse({'success': False}, status=400)
-    return JsonResponse({'error': 'Invalid method'}, status=405)
 
 
 class AnalyticsDashboardView(View):
-    """Admin analytics dashboard."""
+    """Admin analytics dashboard using cache data."""
     
     template_name = 'admin/analytics/dashboard.html'
     
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
     def get(self, request):
-        from pymongo import MongoClient
+        total_page_views = cache.get('analytics:counter:page_view', 0)
+        total_events = sum(cache.get(f'analytics:counter:{t}', 0) for t in [
+            'page_view', 'add_to_cart', 'order_created', 'search'
+        ])
         
-        client = MongoClient('localhost', 27017)
-        db = client['ecomm_db']
+        events = cache.get('analytics_events_pending', [])[-100:]
         
-        events = db.analytics_events
+        path_counts = {}
+        for event in events:
+            if event.get('event_type') == 'page_view':
+                path = event.get('data', {}).get('path', '/')
+                path_counts[path] = path_counts.get(path, 0) + 1
         
-        total_page_views = events.count_documents({'event_type': 'page_view'})
-        
-        pipeline = [
-            {'$match': {'event_type': 'page_view'}},
-            {'$group': {'_id': '$data.path', 'count': {'$sum': 1}}},
-            {'$sort': {'count': -1}},
-            {'$limit': 10}
-        ]
-        top_pages_raw = list(events.aggregate(pipeline))
-        top_pages = [{'path': p['_id'], 'count': p['count']} for p in top_pages_raw]
-        
-        pipeline = [
-            {'$match': {'event_type': 'page_view'}},
-            {'$group': {
-                '_id': {
-                    'year': {'$year': '$created_at'},
-                    'month': {'$month': '$created_at'},
-                    'day': {'$dayOfMonth': '$created_at'}
-                },
-                'count': {'$sum': 1}
-            }},
-            {'$sort': {'_id': -1}},
-            {'$limit': 30}
-        ]
-        daily_views_raw = list(events.aggregate(pipeline))
-        daily_views = [
-            {
-                'day': d['_id'].get('day', 1),
-                'month': d['_id'].get('month', 1),
-                'count': d['count']
-            }
-            for d in daily_views_raw
+        top_pages = [
+            {'path': k, 'count': v}
+            for k, v in sorted(path_counts.items(), key=lambda x: -x[1])[:10]
         ]
         
-        pipeline = [
-            {'$match': {'event_type': {'$ne': 'page_view'}}},
-            {'$group': {'_id': '$event_type', 'count': {'$sum': 1}}},
-            {'$sort': {'count': -1}}
+        event_counts = [
+            {'name': t, 'count': cache.get(f'analytics:counter:{t}', 0)}
+            for t in ['page_view', 'add_to_cart', 'order_created', 'search']
         ]
-        event_counts_raw = list(events.aggregate(pipeline))
-        event_counts = [{'name': e['_id'], 'count': e['count']} for e in event_counts_raw]
-        
-        total_events = events.count_documents({})
         
         context = {
             'total_page_views': total_page_views,
             'total_events': total_events,
             'top_pages': top_pages,
-            'daily_views': daily_views,
+            'daily_views': [],
             'event_counts': event_counts,
         }
         

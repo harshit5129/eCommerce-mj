@@ -9,8 +9,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.crypto import get_random_string
 from django.views.decorators.csrf import csrf_protect
-from django.utils.decorators import method_decorator
 from django.http import JsonResponse
+from django.utils import timezone
 import jwt
 import os
 import logging
@@ -37,8 +37,8 @@ def generate_token(user):
     payload = {
         'user_id': str(user.id),
         'email': user.email,
-        'exp': datetime.utcnow() + timedelta(hours=1),
-        'iat': datetime.utcnow()
+        'exp': timezone.now() + timedelta(hours=1),
+        'iat': timezone.now()
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
@@ -224,7 +224,7 @@ class LoginView(View):
 class RegisterView(View):
     """User registration view."""
     
-    template_name = 'users/signup.html'
+    template_name = 'users/register.html'
     
     def get(self, request):
         if request.user.is_authenticated:

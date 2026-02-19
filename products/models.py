@@ -26,6 +26,9 @@ class Category(models.Model):
         db_table = 'categories'
         verbose_name_plural = 'categories'
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['parent'], name='category_parent_idx'),
+        ]
     
     def __str__(self):
         return self.name
@@ -124,8 +127,29 @@ class Product(models.Model):
             models.Index(fields=['is_active', 'is_featured']),
             models.Index(fields=['category', 'is_active']),
             models.Index(fields=['name'], name='product_name_idx'),
+            models.Index(fields=['deleted_at']),
+            models.Index(fields=['is_active', 'deleted_at']),
+            models.Index(fields=['product_status', 'is_active']),
         ]
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(price__gte=0),
+                name='product_price_non_negative'
+            ),
+            models.CheckConstraint(
+                check=models.Q(compare_price__gte=0) | models.Q(compare_price__isnull=True),
+                name='product_compare_price_non_negative'
+            ),
+            models.CheckConstraint(
+                check=models.Q(cost_per_item__gte=0) | models.Q(cost_per_item__isnull=True),
+                name='product_cost_non_negative'
+            ),
+            models.CheckConstraint(
+                check=models.Q(weight__gte=0) | models.Q(weight__isnull=True),
+                name='product_weight_non_negative'
+            ),
+        ]
     
     def __str__(self):
         return self.name

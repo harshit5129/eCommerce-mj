@@ -338,37 +338,40 @@ class AdminProductListView(View):
 
 class AdminProductCreateView(View):
     """Create new product."""
-    
+
     template_name = 'admin/products/form.html'
-    
+
     @method_decorator(login_required)
     @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
-    
+
     def get(self, request):
         categories = Category.objects.filter(is_active=True)
         return render(request, self.template_name, {'product': None, 'action': 'Create', 'categories': categories})
-    
+
     def post(self, request):
         try:
             name = request.POST.get('name', '').strip()
             slug = request.POST.get('slug', '').strip()
             sku = request.POST.get('sku', '').strip()
-            
+
             if not name or not slug or not sku:
                 messages.error(request, 'Name, slug, and SKU are required')
-                return render(request, self.template_name, {'product': None, 'action': 'Create'})
-            
+                categories = Category.objects.filter(is_active=True)
+                return render(request, self.template_name, {'product': None, 'action': 'Create', 'categories': categories})
+
             # Check for duplicates
             if Product.objects.filter(sku=sku).exists():
                 messages.error(request, 'SKU already exists')
-                return render(request, self.template_name, {'product': None, 'action': 'Create'})
-            
+                categories = Category.objects.filter(is_active=True)
+                return render(request, self.template_name, {'product': None, 'action': 'Create', 'categories': categories})
+
             if Product.objects.filter(slug=slug).exists():
                 messages.error(request, 'Slug already exists')
-                return render(request, self.template_name, {'product': None, 'action': 'Create'})
-            
+                categories = Category.objects.filter(is_active=True)
+                return render(request, self.template_name, {'product': None, 'action': 'Create', 'categories': categories})
+
             # Get category
             category = None
             category_id = request.POST.get('category')
@@ -377,7 +380,7 @@ class AdminProductCreateView(View):
                     category = Category.objects.get(id=int(category_id))
                 except (ValueError, Category.DoesNotExist):
                     pass
-            
+
             # Parse price
             try:
                 price = float(request.POST.get('price', 0))
@@ -385,8 +388,9 @@ class AdminProductCreateView(View):
                     raise ValueError("Price cannot be negative")
             except ValueError:
                 messages.error(request, 'Invalid price')
-                return render(request, self.template_name, {'product': None, 'action': 'Create'})
-            
+                categories = Category.objects.filter(is_active=True)
+                return render(request, self.template_name, {'product': None, 'action': 'Create', 'categories': categories})
+
             product = Product.objects.create(
                 name=name[:255],
                 slug=slug[:255],
@@ -403,10 +407,11 @@ class AdminProductCreateView(View):
                 is_featured=request.POST.get('is_featured') == 'on',
                 product_status=request.POST.get('product_status', 'active'),
             )
-            
-            # Handle images
-            if request.FILES.getlist('images'):
-                for i, image_file in enumerate(request.FILES.getlist('images')):
+
+            # Handle images - first image is primary by default
+            new_images = request.FILES.getlist('images')
+            if new_images:
+                for i, image_file in enumerate(new_images):
                     ProductImage.objects.create(
                         product=product,
                         image=image_file,
@@ -414,16 +419,17 @@ class AdminProductCreateView(View):
                         is_primary=(i == 0),
                         sort_order=i
                     )
-            
+
             # Log the action
             log_admin_action(request, 'CREATE', 'Product', str(product.id), {
                 'name': name,
-                'sku': sku
+                'sku': sku,
+                'images_count': len(new_images)
             })
-            
+
             messages.success(request, 'Product created successfully')
             return redirect('admin_products')
-            
+
         except Exception as e:
             logger.error(f"Product creation failed: {e}", exc_info=True)
             messages.error(request, 'An error occurred while creating the product')
@@ -433,14 +439,14 @@ class AdminProductCreateView(View):
 
 class AdminProductEditView(View):
     """Edit product."""
-    
+
     template_name = 'admin/products/form.html'
-    
+
     @method_decorator(login_required)
     @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
-    
+
     def get(self, request, product_id):
         try:
             product = Product.objects.get(id=product_id)
@@ -449,16 +455,16 @@ class AdminProductEditView(View):
         except Product.DoesNotExist:
             messages.error(request, 'Product not found')
             return redirect('admin_products')
-    
+
     def post(self, request, product_id):
         try:
             product = Product.objects.get(id=product_id)
-            
+
             # Track changes
             changes = {
                 'name': {'old': product.name, 'new': request.POST.get('name', '').strip()[:255]},
             }
-            
+
             # Get category
             category = None
             category_id = request.POST.get('category')
@@ -467,7 +473,7 @@ class AdminProductEditView(View):
                     category = Category.objects.get(id=int(category_id))
                 except (ValueError, Category.DoesNotExist):
                     pass
-            
+
             # Parse price
             try:
                 price = float(request.POST.get('price', 0))
@@ -476,7 +482,7 @@ class AdminProductEditView(View):
             except ValueError:
                 messages.error(request, 'Invalid price')
                 return redirect('admin_products')
-            
+
             product.name = request.POST.get('name', '').strip()[:255]
             product.slug = request.POST.get('slug', '').strip()[:255]
             product.sku = request.POST.get('sku', '').strip()[:100]
@@ -491,26 +497,28 @@ class AdminProductEditView(View):
             product.is_active = request.POST.get('is_active') == 'on'
             product.is_featured = request.POST.get('is_featured') == 'on'
             product.product_status = request.POST.get('product_status', 'active')
-            
+
             product.save()
-            
-            # Handle images
-            if request.FILES.getlist('images'):
-                for i, image_file in enumerate(request.FILES.getlist('images')):
-                    ProductImage.objects.create(
+
+            # Handle new images
+            new_images = request.FILES.getlist('images')
+            if new_images:
+                existing_count = product.images.count()
+                for i, image_file in enumerate(new_images):
+                    img = ProductImage.objects.create(
                         product=product,
                         image=image_file,
                         alt_text=product.name,
-                        is_primary=(i == 0),
-                        sort_order=product.images.count() + i
+                        is_primary=(existing_count == 0 and i == 0),
+                        sort_order=existing_count + i
                     )
-            
+
             # Log the action
             log_admin_action(request, 'UPDATE', 'Product', str(product.id), changes)
-            
+
             messages.success(request, 'Product updated successfully')
             return redirect('admin_products')
-            
+
         except Product.DoesNotExist:
             messages.error(request, 'Product not found')
             return redirect('admin_products')
@@ -695,7 +703,7 @@ class AdminCouponCreateView(View):
             if valid_until:
                 valid_until = datetime.strptime(valid_until, '%Y-%m-%dT%H:%M')
             else:
-                valid_until = datetime.utcnow() + timedelta(days=30)
+                valid_until = timezone.now() + timedelta(days=30)
             
             # Validate discount value
             try:
@@ -882,33 +890,6 @@ class AdminReviewApproveView(View):
         except Exception as e:
             logger.error(f"Review approval failed: {e}", exc_info=True)
             return JsonResponse({'error': 'An error occurred'}, status=500)
-            
-            coupon.code = new_code[:50]
-            coupon.description = request.POST.get('description', '')[:200]
-            coupon.discount_type = request.POST.get('discount_type', 'percentage')
-            coupon.discount_value = max(0, float(request.POST.get('discount_value', 0)))
-            coupon.min_order_value = max(0, float(request.POST.get('min_order_value', 0)))
-            coupon.max_discount = max(0, float(request.POST.get('max_discount', 0)))
-            coupon.usage_limit = max(0, int(request.POST.get('usage_limit', 0)))
-            coupon.per_user_limit = max(1, int(request.POST.get('per_user_limit', 1)))
-            coupon.is_active = request.POST.get('is_active') == 'on'
-            coupon.is_first_order_only = request.POST.get('is_first_order_only') == 'on'
-            
-            coupon.save()
-            
-            # Log the action
-            log_admin_action(request, 'UPDATE', 'Coupon', str(coupon.id), {'code': coupon.code})
-            
-            messages.success(request, 'Coupon updated successfully')
-            return redirect('admin_coupons')
-            
-        except Coupon.DoesNotExist:
-            messages.error(request, 'Coupon not found')
-            return redirect('admin_coupons')
-        except Exception as e:
-            logger.error(f"Coupon update failed: {e}", exc_info=True)
-            messages.error(request, 'An error occurred while updating the coupon')
-            return redirect('admin_coupons')
 
 
 class AdminOfferListView(View):
@@ -1114,3 +1095,178 @@ class AdminCouponDeleteView(View):
             messages.error(request, 'An error occurred while deleting the coupon')
         
         return redirect('admin_coupons')
+
+
+class AdminReviewExportView(View):
+    """Export reviews to CSV."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="reviews_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'ID', 'Product ID', 'User Name', 'User Email', 'Rating',
+            'Title', 'Review', 'Verified Purchase', 'Approved',
+            'Helpful Count', 'Created At'
+        ])
+        
+        reviews = ProductReview.objects.all().order_by('-created_at')
+        for review in reviews:
+            writer.writerow([
+                review.id,
+                review.product_id,
+                review.user_name,
+                review.user_email,
+                review.rating,
+                review.title,
+                review.review[:500] if review.review else '',
+                review.is_verified_purchase,
+                review.is_approved,
+                review.helpful_count,
+                review.created_at.strftime('%Y-%m-%d %H:%M:%S') if review.created_at else '',
+            ])
+        
+        log_admin_action(request, 'EXPORT', 'ProductReview', None, {'count': reviews.count()})
+        
+        return response
+
+
+class AdminNotificationListView(View):
+    """Get notifications for admin."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        from users.models import Notification
+        
+        notifications = Notification.objects.all()[:20]
+        unread_count = Notification.objects.filter(is_read=False).count()
+        
+        data = {
+            'notifications': [
+                {
+                    'id': n.id,
+                    'title': n.title,
+                    'message': n.message,
+                    'type': n.notification_type,
+                    'link': n.link,
+                    'is_read': n.is_read,
+                    'created_at': n.created_at.strftime('%Y-%m-%d %H:%M')
+                }
+                for n in notifications
+            ],
+            'unread_count': unread_count
+        }
+        return JsonResponse(data)
+
+
+class AdminNotificationMarkReadView(View):
+    """Mark notification as read."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request, notification_id):
+        from users.models import Notification
+        
+        try:
+            notification = Notification.objects.get(id=notification_id)
+            notification.is_read = True
+            notification.save()
+            return JsonResponse({'success': True})
+        except Notification.DoesNotExist:
+            return JsonResponse({'error': 'Notification not found'}, status=404)
+
+
+class AdminNotificationMarkAllReadView(View):
+    """Mark all notifications as read."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        from users.models import Notification
+        Notification.objects.filter(is_read=False).update(is_read=True)
+        return JsonResponse({'success': True})
+
+
+class AdminProductImageDeleteView(View):
+    """Delete a product image."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request, image_id):
+        try:
+            image_id = int(image_id)
+            image = ProductImage.objects.get(id=image_id)
+            product_id = image.product.id
+            was_primary = image.is_primary
+            
+            image.image.delete(save=False)
+            image.delete()
+            
+            if was_primary:
+                next_image = ProductImage.objects.filter(product_id=product_id).first()
+                if next_image:
+                    next_image.is_primary = True
+                    next_image.save()
+            
+            log_admin_action(request, 'DELETE', 'ProductImage', str(image_id), {
+                'product_id': product_id
+            })
+            
+            return JsonResponse({'success': True, 'message': 'Image deleted'})
+        except (ValueError, ProductImage.DoesNotExist):
+            return JsonResponse({'error': 'Image not found'}, status=404)
+        except Exception as e:
+            logger.error(f"Image deletion failed: {e}", exc_info=True)
+            return JsonResponse({'error': 'An error occurred'}, status=500)
+
+
+class AdminProductImageSetPrimaryView(View):
+    """Set a product image as primary."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request, image_id):
+        try:
+            image_id = int(image_id)
+            image = ProductImage.objects.get(id=image_id)
+            
+            ProductImage.objects.filter(product=image.product).update(is_primary=False)
+            
+            image.is_primary = True
+            image.save()
+            
+            log_admin_action(request, 'UPDATE', 'ProductImage', str(image_id), {
+                'is_primary': True
+            })
+            
+            return JsonResponse({'success': True, 'message': 'Primary image updated'})
+        except (ValueError, ProductImage.DoesNotExist):
+            return JsonResponse({'error': 'Image not found'}, status=404)
+        except Exception as e:
+            logger.error(f"Set primary image failed: {e}", exc_info=True)
+            return JsonResponse({'error': 'An error occurred'}, status=500)

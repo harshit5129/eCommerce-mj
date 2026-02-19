@@ -1,14 +1,19 @@
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me')
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('SECRET_KEY environment variable is required in production')
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -27,16 +32,16 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     
-    # Local apps
-    'core',
+    # Local apps (using AppConfig paths)
+    'core.apps.CoreConfig',
     'users.apps.UsersConfig',
-    'products',
-    'cart',
-    'orders',
-    'analytics',
-    'cookies',
-    'pages',
-    'offers',
+    'products.apps.ProductsConfig',
+    'cart.apps.CartConfig',
+    'orders.apps.OrdersConfig',
+    'analytics.apps.AnalyticsConfig',
+    'cookies.apps.CookiesConfig',
+    'pages.apps.PagesConfig',
+    'offers.apps.OffersConfig',
 ]
 
 MIDDLEWARE = [
@@ -83,7 +88,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME', 'ecomm_db'),
         'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'password'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
         'OPTIONS': {

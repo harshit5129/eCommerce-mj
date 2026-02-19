@@ -1,209 +1,368 @@
-# E-Commerce Django Application
+# 🛒 E-Commerce Django Application
 
-A production-ready e-commerce web application built with Django, MongoDB, Vanilla JavaScript, and Tailwind CSS.
+A production-ready e-commerce web application built with Django, PostgreSQL, and Tailwind CSS featuring a modern dark crimson theme.
 
-## Features
+![Django](https://img.shields.io/badge/Django-4.2+-green.svg)
+![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-### Core Features
-- User registration, login, and logout
-- JWT-based authentication
-- Product listing with search and filtering
-- Product detail pages
-- Shopping cart functionality
-- Checkout process
-- Order creation and history
-- User profile management
+## ✨ Features
 
-### API Features (Phase 2)
-- RESTful API with Django REST Framework
-- JWT authentication
-- Product API with pagination and filtering
-- Cart API
-- Order API
+### 🛍️ Storefront
+- **Product Catalog**: Browse products with search, filters, and sorting
+- **Product Details**: Image gallery, reviews, related products
+- **Shopping Cart**: Add/remove items, quantity management
+- **Wishlist**: Save favorite products
+- **User Reviews**: Ratings, photos, videos with helpful voting
 
-## Tech Stack
+### 🔐 Authentication
+- User registration with email verification
+- JWT-based API authentication
+- Session-based web authentication
+- Password reset with secure tokens
+- Social login ready
 
-- **Backend**: Django 4.2+
-- **Database**: MongoDB with MongoEngine
-- **Frontend**: HTML5, Tailwind CSS, Vanilla JavaScript
-- **API**: Django REST Framework
-- **Authentication**: JWT (djangorestframework-simplejwt)
+### 💳 Payments
+- Razorpay payment integration
+- Multiple payment methods
+- Webhook handling for payment status
+- Order confirmation emails
 
-## Why MongoEngine over Djongo?
+### 📊 Admin Panel
+- Custom admin dashboard with analytics
+- Product management with multiple images
+- Order management with status updates
+- Coupon and offer management
+- Review moderation
+- User management
 
-We chose MongoEngine for the following reasons:
+### 🎨 Frontend
+- Modern dark crimson/orange theme
+- Responsive design with Tailwind CSS
+- Image carousels and sliders
+- AJAX-powered cart and wishlist
+- Real-time notifications
 
-1. **Stability**: MongoEngine is more mature and stable than Djongo
-2. **Documentation**: Better documentation and community support
-3. **Maintenance**: Actively maintained and updated
-4. **Flexibility**: More flexible for MongoDB-specific features
-5. **Compatibility**: Fewer compatibility issues with Django versions
+## 🚀 Tech Stack
 
-## Database Design
+| Component | Technology |
+|-----------|------------|
+| **Backend** | Django 4.2+ |
+| **Database** | PostgreSQL 14+ |
+| **Cache/Session** | Redis |
+| **Task Queue** | Celery |
+| **Frontend** | Tailwind CSS, JavaScript |
+| **API** | Django REST Framework |
+| **Authentication** | JWT (SimpleJWT) |
+| **Payments** | Razorpay |
+| **Static Files** | WhiteNoise |
 
-### Embedding vs Referencing
-
-- **Cart Items**: Embedded in User document (small, frequently accessed)
-- **Order Items**: Embedded in Order document (complete snapshot)
-- **Product in Cart**: Reference (product can change independently)
-- **User in Orders**: Reference (user can have many orders)
-
-### Index Strategy
-
-- Products: `slug`, `sku`, `price`, `is_active`, text index for search
-- Users: `email`, `username`
-- Orders: `user_id`, `order_number`, `created_at`
-
-## Getting Started
-
-### Prerequisites
+## 📋 Requirements
 
 - Python 3.11+
-- MongoDB 6.0+
-- pip
+- PostgreSQL 14+
+- Redis 7+
+- Node.js 18+ (for Tailwind CLI, optional)
 
-### Installation
+## 🛠️ Installation
 
-1. Clone the repository
-2. Create virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Copy environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-5. Edit `.env` with your settings:
-   ```
-   SECRET_KEY=your-secret-key
-   MONGODB_HOST=localhost
-   MONGODB_PORT=27017
-   MONGODB_NAME=ecomm_db
-   ```
-
-6. Run migrations (MongoDB doesn't require traditional migrations):
-   ```bash
-   python manage.py
-   ```
-
-7. Create sample data:
-   ```bash
-   python manage.py create_sample_data
-   ```
-
-8. Run development server:
-   ```bash
-   python manage.py runserver
-   ```
-
-### Docker Setup
+### 1. Clone the Repository
 
 ```bash
-docker-compose up --build
+git clone https://github.com/yourusername/ecomm.git
+cd ecomm
 ```
 
-## Project Structure
+### 2. Create Virtual Environment
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configure Environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your settings:
+
+```env
+# Required
+SECRET_KEY=your-secure-50-character-secret-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Database
+DB_NAME=ecomm_db
+DB_USER=postgres
+DB_PASSWORD=your-password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Redis
+REDIS_URL=redis://127.0.0.1:6379/1
+
+# Razorpay
+RAZORPAY_KEY_ID=your-key-id
+RAZORPAY_KEY_SECRET=your-key-secret
+```
+
+### 5. Setup Database
+
+```bash
+# Create PostgreSQL database
+sudo -u postgres createdb ecomm_db
+
+# Run migrations
+python manage.py migrate
+
+# Create superuser
+python manage.py createsuperuser
+```
+
+### 6. Run Development Server
+
+```bash
+python manage.py runserver
+```
+
+Visit http://localhost:8000
+
+## 🐳 Docker Setup
+
+```bash
+# Build and run
+docker-compose up --build
+
+# Run migrations
+docker-compose exec web python manage.py migrate
+
+# Create superuser
+docker-compose exec web python manage.py createsuperuser
+```
+
+## 📁 Project Structure
 
 ```
 ecomm/
-├── config/              # Django configuration
-│   ├── settings/       # Settings (base, dev, prod)
-│   ├── urls.py         # Main URL configuration
-│   └── wsgi.py         # WSGI configuration
-├── users/              # User authentication app
-│   ├── models.py       # User model
-│   ├── views.py        # Authentication views
-│   └── urls.py         # URL routing
-├── products/           # Products app
-│   ├── models.py       # Product model
-│   ├── views.py        # Product views
-│   └── urls.py         # URL routing
-├── cart/               # Shopping cart app
-│   ├── models.py      # Cart models
-│   ├── views.py       # Cart views
-│   └── urls.py        # URL routing
-├── orders/             # Orders app
-│   ├── models.py      # Order model
-│   ├── views.py       # Order views
-│   └── urls.py        # URL routing
-├── templates/          # HTML templates
-├── static/            # Static files
-│   ├── css/          # CSS files
-│   └── js/           # JavaScript files
-└── manage.py         # Django management script
+├── config/                 # Django configuration
+│   ├── settings/          # Environment-specific settings
+│   │   ├── base.py       # Common settings
+│   │   ├── development.py # Development settings
+│   │   └── production.py # Production settings
+│   ├── urls.py            # Main URL configuration
+│   ├── celery.py          # Celery configuration
+│   └── wsgi.py            # WSGI configuration
+│
+├── users/                  # User management
+│   ├── models.py          # User, Address, CartItem models
+│   ├── views.py           # Auth views
+│   └── api_views.py       # User API endpoints
+│
+├── products/               # Product catalog
+│   ├── models.py          # Product, Category, ProductImage
+│   ├── views.py           # Product views
+│   └── api_views.py       # Product API endpoints
+│
+├── orders/                 # Order management
+│   ├── models.py          # Order, OrderItem, PaymentTransaction
+│   ├── views.py           # Order views
+│   └── razorpay_views.py  # Payment integration
+│
+├── offers/                 # Offers and discounts
+│   ├── models.py          # Coupon, LimitedOffer, ProductReview
+│   └── views.py           # Offer views
+│
+├── cart/                   # Shopping cart
+│   ├── views.py           # Cart views
+│   └── api_views.py       # Cart API endpoints
+│
+├── analytics/              # Analytics tracking
+├── core/                   # Core utilities
+├── cookies/                # Cookie consent
+├── pages/                  # Static pages
+│
+├── templates/              # HTML templates
+│   ├── base.html          # Main base template
+│   ├── admin/             # Admin templates
+│   ├── products/          # Product templates
+│   ├── orders/            # Order templates
+│   ├── users/             # User templates
+│   └── partials/          # Reusable components
+│
+├── static/                 # Static files
+│   └── js/                # JavaScript files
+│
+├── media/                  # User uploads
+│
+├── requirements.txt        # Python dependencies
+├── gunicorn.conf.py       # Gunicorn configuration
+└── docker-compose.yml     # Docker configuration
 ```
 
-## Deployment
+## 🔌 API Endpoints
 
-### Docker
+### Products
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/products/` | List products with filters |
+| GET | `/api/products/<id>/` | Product details |
+| GET | `/api/products/featured/` | Featured products |
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register/` | Register new user |
+| POST | `/api/auth/login/` | Login user |
+| POST | `/api/auth/logout/` | Logout user |
+| GET | `/api/auth/profile/` | User profile |
+
+### Cart
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/cart/` | Get cart |
+| POST | `/api/cart/add/` | Add item to cart |
+| POST | `/api/cart/update/` | Update item quantity |
+| POST | `/api/cart/remove/` | Remove item |
+| POST | `/api/cart/clear/` | Clear cart |
+
+### Orders
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/orders/` | List user orders |
+| POST | `/api/orders/create/` | Create order |
+| GET | `/api/orders/<number>/` | Order details |
+| POST | `/api/orders/cancel/` | Cancel order |
+
+### Offers
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/offers/coupon/apply/` | Apply coupon |
+| POST | `/api/offers/coupon/remove/` | Remove coupon |
+| GET | `/api/offers/offers/active/` | Active offers |
+
+## 🔒 Security Features
+
+- ✅ CSRF protection
+- ✅ XSS prevention (auto-escaping)
+- ✅ SQL injection prevention (ORM)
+- ✅ Rate limiting
+- ✅ Secure session cookies
+- ✅ JWT token authentication
+- ✅ Payment signature verification
+- ✅ Input validation
+- ✅ Audit logging
+
+## 📊 Performance Optimizations
+
+- Database indexes on key fields
+- Redis caching
+- Query optimization with `select_related`/`prefetch_related`
+- Static file compression (WhiteNoise)
+- Lazy loading images
+
+## 🧪 Running Tests
 
 ```bash
-docker build -t ecomm .
-docker run -p 8000:8000 ecomm
+# Run all tests
+python manage.py test
+
+# Run with coverage
+coverage run --source='.' manage.py test
+coverage report
 ```
 
-### Render
+## 🚀 Deployment
 
-1. Connect your GitHub repository to Render
-2. Set environment variables
-3. Add MongoDB addon (MongoDB Atlas)
+### Production Checklist
+
+1. Set environment variables:
+   ```env
+   DEBUG=False
+   SECRET_KEY=your-production-secret-key
+   SECURE_SSL_REDIRECT=True
+   SECURE_HSTS=True
+   CSRF_COOKIE_SECURE=True
+   SESSION_COOKIE_SECURE=True
+   ```
+
+2. Collect static files:
+   ```bash
+   python manage.py collectstatic --noinput
+   ```
+
+3. Run with Gunicorn:
+   ```bash
+   gunicorn config.wsgi:application
+   ```
+
+### Deploy to Render/Heroku
+
+1. Push code to GitHub
+2. Connect repository to platform
+3. Set environment variables
 4. Deploy
 
-### VPS (Ubuntu)
+### Deploy to VPS
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Collect static files
+# Run migrations
+python manage.py migrate
+
+# Collect static
 python manage.py collectstatic
 
-# Run with Gunicorn
+# Start Gunicorn
 gunicorn config.wsgi:application --bind 0.0.0.0:8000
 ```
 
-## Environment Variables
+## 📝 Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| SECRET_KEY | Django secret key | Required |
-| DEBUG | Debug mode | False |
-| MONGODB_HOST | MongoDB host | localhost |
-| MONGODB_PORT | MongoDB port | 27017 |
-| MONGODB_NAME | Database name | ecomm_db |
-| JWT_SECRET_KEY | JWT secret key | Required |
-| ALLOWED_HOSTS | Allowed hosts | localhost |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SECRET_KEY` | Django secret key | ✅ |
+| `DEBUG` | Debug mode | ✅ |
+| `ALLOWED_HOSTS` | Allowed hosts | ✅ |
+| `DB_NAME` | Database name | ✅ |
+| `DB_USER` | Database user | ✅ |
+| `DB_PASSWORD` | Database password | ✅ |
+| `DB_HOST` | Database host | ✅ |
+| `REDIS_URL` | Redis connection URL | ✅ |
+| `RAZORPAY_KEY_ID` | Razorpay key ID | ✅ |
+| `RAZORPAY_KEY_SECRET` | Razorpay secret | ✅ |
+| `JWT_SECRET_KEY` | JWT secret key | ✅ |
+| `EMAIL_HOST_USER` | Email user | ❌ |
+| `EMAIL_HOST_PASSWORD` | Email password | ❌ |
 
-## API Endpoints
+## 📄 License
 
-### Products
-- `GET /api/products/` - List products
-- `GET /api/products/<id>/` - Get product detail
-- `GET /api/products/featured/` - Featured products
+MIT License - see [LICENSE](LICENSE) file.
 
-### Users
-- `POST /api/auth/register/` - Register user
-- `POST /api/auth/login/` - Login user
-- `GET /api/auth/profile/` - Get user profile
+## 🤝 Contributing
 
-### Cart
-- `GET /api/cart/` - Get cart
-- `POST /api/cart/add/` - Add to cart
-- `POST /api/cart/update/` - Update cart item
-- `POST /api/cart/remove/` - Remove from cart
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing`)
+5. Open Pull Request
 
-### Orders
-- `GET /api/orders/` - List orders
-- `POST /api/orders/create/` - Create order
+## 📧 Support
 
-## License
+- Create an issue for bugs
+- Email: support@eshop.com
 
-MIT License
+---
+
+Built with ❤️ using Django

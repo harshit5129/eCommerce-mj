@@ -4,119 +4,121 @@
 {% block title %}Shopping Cart - E-Shop{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8">Shopping Cart</h1>
-    
-    {% if cart_items %}
-        <div class="flex flex-col lg:flex-row gap-8">
-            <div class="lg:w-2/3">
-                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-6">
-                        {% for item in cart_items %}
-                            <div class="flex items-center py-6 border-b last:border-b-0" data-product-id="{{ item.product_id }}">
-                                <div class="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                                    {% if item.product_image %}
-                                        <img src="{{ item.product_image }}" alt="{{ item.product_name }}" class="w-full h-full object-cover hover:scale-110 transition-transform duration-300">
-                                    {% else %}
-                                        <div class="w-full h-full flex items-center justify-center text-gray-400">
-                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                            </svg>
-                                        </div>
-                                    {% endif %}
+<div class="min-h-screen bg-accent-900">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-white">Shopping Cart</h1>
+        
+        {% if cart_items %}
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div class="lg:w-2/3">
+                    <div class="bg-accent-800/50 rounded-xl border border-accent-700/50 overflow-hidden">
+                        <div class="p-6">
+                            {% for item in cart_items %}
+                                <div class="flex items-center py-6 border-b border-accent-700/50 last:border-b-0" data-product-id="{{ item.product_id }}">
+                                    <div class="w-24 h-24 flex-shrink-0 bg-accent-700/50 rounded-lg overflow-hidden">
+                                        {% if item.product_image %}
+                                            <img src="{{ item.product_image }}" alt="{{ item.product_name }}" class="w-full h-full object-cover hover:scale-110 transition-transform duration-300">
+                                        {% else %}
+                                            <div class="w-full h-full flex items-center justify-center text-gray-500">
+                                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                </svg>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="flex-1 ml-4">
+                                        <a href="{% url 'product_detail' item.product_slug|default:item.product_id %}" class="text-lg font-semibold text-gray-200 hover:text-secondary-400 transition-colors">
+                                            {{ item.product_name }}
+                                        </a>
+                                        <p class="text-gray-400">{{ item.product_price|rupee }} each</p>
+                                    </div>
+                                    
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="updateQuantity('{{ item.product_id }}', {{ item.quantity }} - 1)" 
+                                                class="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center border border-accent-600/50 text-gray-300 rounded-lg hover:bg-accent-700/50 hover:border-secondary-500/50 transition-all touch-manipulation"
+                                                aria-label="Decrease quantity">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                                        </button>
+                                        <span class="w-12 text-center font-medium text-gray-200" aria-label="Quantity">{{ item.quantity }}</span>
+                                        <button onclick="updateQuantity('{{ item.product_id }}', {{ item.quantity }} + 1)" 
+                                                class="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center border border-accent-600/50 text-gray-300 rounded-lg hover:bg-accent-700/50 hover:border-secondary-500/50 transition-all touch-manipulation"
+                                                aria-label="Increase quantity">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="text-right ml-6">
+                                        <p class="text-lg font-bold text-white">{{ item.total|rupee }}</p>
+                                        <button onclick="removeFromCart('{{ item.product_id }}')" 
+                                                class="text-primary-400 text-sm hover:text-primary-300 hover:underline mt-1 transition-colors">
+                                            Remove
+                                        </button>
+                                    </div>
                                 </div>
-                                
-                                <div class="flex-1 ml-4">
-                                    <a href="{% url 'product_detail' item.product_slug|default:item.product_id %}" class="text-lg font-semibold hover:text-primary transition-colors">
-                                        {{ item.product_name }}
-                                    </a>
-                                    <p class="text-gray-500">{{ item.product_price|rupee }} each</p>
-                                </div>
-                                
-                                <div class="flex items-center gap-2">
-                                    <button onclick="updateQuantity('{{ item.product_id }}', {{ item.quantity }} - 1)" 
-                                            class="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-primary transition-all touch-manipulation"
-                                            aria-label="Decrease quantity">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
-                                    </button>
-                                    <span class="w-12 text-center font-medium" aria-label="Quantity">{{ item.quantity }}</span>
-                                    <button onclick="updateQuantity('{{ item.product_id }}', {{ item.quantity }} + 1)" 
-                                            class="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-primary transition-all touch-manipulation"
-                                            aria-label="Increase quantity">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                    </button>
-                                </div>
-                                
-                                <div class="text-right ml-6">
-                                    <p class="text-lg font-bold text-gray-800">{{ item.total|rupee }}</p>
-                                    <button onclick="removeFromCart('{{ item.product_id }}')" 
-                                            class="text-red-500 text-sm hover:text-red-700 hover:underline mt-1 transition-colors">
-                                        Remove
-                                    </button>
-                                </div>
-                            </div>
-                        {% endfor %}
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="lg:w-1/3">
-                {% include 'partials/coupon_input.html' %}
                 
-                <div class="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-                    <h2 class="text-xl font-bold mb-6 pb-4 border-b">Order Summary</h2>
+                <div class="lg:w-1/3">
+                    {% include 'partials/coupon_input.html' %}
                     
-                    <div class="space-y-3 mb-6">
-                        <div class="flex justify-between text-gray-600">
-                            <span>Subtotal</span>
-                            <span class="font-semibold text-gray-800" id="cart-subtotal">{{ cart_total|rupee }}</span>
+                    <div class="bg-accent-800/50 rounded-xl border border-accent-700/50 p-6 sticky top-24">
+                        <h2 class="text-xl font-bold mb-6 pb-4 border-b border-accent-700/50 text-white">Order Summary</h2>
+                        
+                        <div class="space-y-3 mb-6">
+                            <div class="flex justify-between text-gray-400">
+                                <span>Subtotal</span>
+                                <span class="font-semibold text-gray-200" id="cart-subtotal">{{ cart_total|rupee }}</span>
+                            </div>
+                            <div id="discount-row" class="hidden flex justify-between text-secondary-400">
+                                <span>Discount</span>
+                                <span class="font-semibold" id="cart-discount">-₹0</span>
+                            </div>
+                            <div class="flex justify-between text-gray-400">
+                                <span>Shipping</span>
+                                <span class="font-semibold text-gray-200" id="cart-shipping">
+                                    {% if cart_total >= 4000 %}<span class="text-secondary-400">Free</span>{% else %}{{ shipping_cost|rupee }}{% endif %}
+                                </span>
+                            </div>
+                            <div class="flex justify-between text-gray-400">
+                                <span>Tax (18% GST)</span>
+                                <span class="font-semibold text-gray-200" id="cart-tax">{{ tax|rupee }}</span>
+                            </div>
                         </div>
-                        <div id="discount-row" class="hidden flex justify-between text-green-600">
-                            <span>Discount</span>
-                            <span class="font-semibold" id="cart-discount">-₹0</span>
+                        
+                        <div class="border-t border-accent-700/50 pt-4 mb-6">
+                            <div class="flex justify-between text-xl font-bold">
+                                <span class="text-white">Total</span>
+                                <span class="text-secondary-400" id="cart-total">{{ order_total|rupee }}</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between text-gray-600">
-                            <span>Shipping</span>
-                            <span class="font-semibold text-gray-800" id="cart-shipping">
-                                {% if cart_total >= 4000 %}<span class="text-green-600">Free</span>{% else %}{{ shipping_cost|rupee }}{% endif %}
-                            </span>
-                        </div>
-                        <div class="flex justify-between text-gray-600">
-                            <span>Tax (18% GST)</span>
-                            <span class="font-semibold text-gray-800" id="cart-tax">{{ tax|rupee }}</span>
-                        </div>
+                        
+                        <a href="{% url 'checkout' %}" class="block w-full btn-glow text-white text-center py-3 rounded-lg transition-all transform hover:scale-[1.02]">
+                            Proceed to Checkout
+                        </a>
+                        
+                        <a href="{% url 'product_list' %}" class="block w-full text-center text-gray-400 hover:text-secondary-400 mt-4 font-medium transition-colors">
+                            ← Continue Shopping
+                        </a>
                     </div>
-                    
-                    <div class="border-t pt-4 mb-6">
-                        <div class="flex justify-between text-xl font-bold">
-                            <span>Total</span>
-                            <span class="text-primary" id="cart-total">{{ order_total|rupee }}</span>
-                        </div>
-                    </div>
-                    
-                    <a href="{% url 'checkout' %}" class="block w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-[1.02] shadow-lg">
-                        Proceed to Checkout
-                    </a>
-                    
-                    <a href="{% url 'product_list' %}" class="block w-full text-center text-primary hover:text-blue-700 mt-4 font-medium transition-colors">
-                        ← Continue Shopping
-                    </a>
                 </div>
             </div>
-        </div>
-    {% else %}
-        <div class="text-center py-16">
-            <div class="w-32 h-32 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-                </svg>
+        {% else %}
+            <div class="text-center py-16">
+                <div class="w-32 h-32 bg-accent-800/50 rounded-full flex items-center justify-center mx-auto mb-6 border border-accent-700/50">
+                    <svg class="w-16 h-16 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 text-white">Your cart is empty</h2>
+                <p class="text-gray-400 mb-8">Looks like you haven't added any items to your cart yet.</p>
+                <a href="{% url 'product_list' %}" class="inline-block px-8 py-3 btn-glow text-white rounded-lg transition-all transform hover:scale-105">
+                    Start Shopping
+                </a>
             </div>
-            <h2 class="text-2xl font-bold mb-2 text-gray-800">Your cart is empty</h2>
-            <p class="text-gray-500 mb-8">Looks like you haven't added any items to your cart yet.</p>
-            <a href="{% url 'product_list' %}" class="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-105 shadow-lg">
-                Start Shopping
-            </a>
-        </div>
-    {% endif %}
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

@@ -8,18 +8,18 @@ class ProductModelTests(TestCase):
     """Tests for Product model."""
     
     def setUp(self):
-        self.category = Category(name='Electronics', slug='electronics')
+        self.category = Category.objects.create(name='Electronics', slug='electronics')
     
     def test_create_product(self):
         """Test creating a new product."""
-        product = Product(
+        product = Product.objects.create(
             name='Test Product',
             slug='test-product',
             sku='TEST-001',
             price=99.99,
             category=self.category,
+            stock_quantity=10,
         )
-        product.save()
         
         self.assertEqual(product.name, 'Test Product')
         self.assertEqual(product.price, 99.99)
@@ -27,20 +27,19 @@ class ProductModelTests(TestCase):
     
     def test_product_discount(self):
         """Test product discount calculation."""
-        product = Product(
+        product = Product.objects.create(
             name='Sale Product',
             slug='sale-product',
             sku='SALE-001',
             price=80.00,
             compare_price=100.00,
         )
-        product.save()
         
         self.assertEqual(product.discount_percentage, 20.0)
     
     def test_product_out_of_stock(self):
         """Test out of stock product."""
-        product = Product(
+        product = Product.objects.create(
             name='Out of Stock',
             slug='out-of-stock',
             sku='OOS-001',
@@ -48,7 +47,6 @@ class ProductModelTests(TestCase):
             stock_quantity=0,
             track_inventory=True,
         )
-        product.save()
         
         self.assertFalse(product.in_stock)
 
@@ -61,9 +59,9 @@ class ProductViewTests(TestCase):
         self.home_url = reverse('home')
         self.product_list_url = reverse('product_list')
         
-        self.category = Category(name='Electronics', slug='electronics')
+        self.category = Category.objects.create(name='Electronics', slug='electronics')
         
-        self.product = Product(
+        self.product = Product.objects.create(
             name='Test Product',
             slug='test-product',
             sku='TEST-001',
@@ -71,7 +69,6 @@ class ProductViewTests(TestCase):
             category=self.category,
             is_active=True,
         )
-        self.product.save()
     
     def test_home_page(self):
         """Test home page loads."""
@@ -111,9 +108,9 @@ class CartViewTests(TestCase):
         self.client = Client()
         self.cart_url = reverse('cart')
         
-        self.category = Category(name='Electronics', slug='electronics')
+        self.category = Category.objects.create(name='Electronics', slug='electronics')
         
-        self.product = Product(
+        self.product = Product.objects.create(
             name='Test Product',
             slug='test-product',
             sku='TEST-001',
@@ -122,7 +119,6 @@ class CartViewTests(TestCase):
             is_active=True,
             stock_quantity=10,
         )
-        self.product.save()
     
     def test_empty_cart(self):
         """Test empty cart page."""

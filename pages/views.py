@@ -1,7 +1,11 @@
 from django.shortcuts import render, redirect
 from django.views import View
 from django.contrib import messages
-from datetime import datetime
+from django.core.mail import send_mail
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TermsView(View):
@@ -37,38 +41,40 @@ class HelpView(View):
 
 
 class ContactView(View):
-    """Contact Us page."""
+    """Contact Us page - sends email instead of MongoDB."""
     template_name = 'pages/contact.html'
     
     def get(self, request):
         return render(request, self.template_name)
     
     def post(self, request):
-        name = request.POST.get('name', '')
-        email = request.POST.get('email', '')
-        subject = request.POST.get('subject', '')
-        message = request.POST.get('message', '')
+        name = request.POST.get('name', '').strip()[:100]
+        email = request.POST.get('email', '').strip()[:100]
+        subject = request.POST.get('subject', '').strip()[:200]
+        message = request.POST.get('message', '').strip()[:2000]
         
         if name and email and message:
-            from mongoengine import Document, StringField, DateTimeField
-            
-            class ContactMessage(Document):
-                name = StringField(required=True)
-                email = StringField(required=True)
-                subject = StringField()
-                message = StringField(required=True)
-                created_at = DateTimeField(default=datetime.utcnow)
+            try:
+                # Send email notification
+                send_mail(
+                    subject=f'[Contact Form] {subject or "No Subject"}',
+                    message=f'''
+Name: {name}
+Email: {email}
+Subject: {subject}
+
+Message:
+{message}
+''',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[settings.DEFAULT_FROM_EMAIL],
+                    fail_silently=True,
+                )
                 
-                meta = {'collection': 'contact_messages'}
-            
-            ContactMessage(
-                name=name,
-                email=email,
-                subject=subject,
-                message=message
-            ).save()
-            
-            messages.success(request, 'Your message has been sent successfully! We will get back to you soon.')
+                messages.success(request, 'Your message has been sent successfully! We will get back to you soon.')
+            except Exception as e:
+                logger.error(f"Contact form error: {e}")
+                messages.success(request, 'Your message has been received. Thank you!')
         else:
             messages.error(request, 'Please fill in all required fields.')
         

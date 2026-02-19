@@ -63,6 +63,20 @@ class Coupon(models.Model):
             models.Index(fields=['valid_until']),
         ]
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(discount_value__gte=0),
+                name='coupon_discount_value_non_negative'
+            ),
+            models.CheckConstraint(
+                check=models.Q(min_order_value__gte=0),
+                name='coupon_min_order_value_non_negative'
+            ),
+            models.CheckConstraint(
+                check=models.Q(max_discount__gte=0),
+                name='coupon_max_discount_non_negative'
+            ),
+        ]
     
     def __str__(self):
         return self.code
@@ -137,8 +151,15 @@ class CouponUsage(models.Model):
         indexes = [
             models.Index(fields=['coupon', 'user_email']),
             models.Index(fields=['order_number']),
+            models.Index(fields=['user_email', 'used_at']),
         ]
         ordering = ['-used_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(discount_amount__gte=0),
+                name='coupon_usage_discount_non_negative'
+            ),
+        ]
     
     def __str__(self):
         return f"{self.coupon.code} used by {self.user_email}"
@@ -202,8 +223,15 @@ class LimitedOffer(models.Model):
             models.Index(fields=['slug']),
             models.Index(fields=['is_active']),
             models.Index(fields=['starts_at', 'ends_at']),
+            models.Index(fields=['is_active', 'starts_at', 'ends_at']),
         ]
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(discount_value__gte=0),
+                name='limited_offer_discount_non_negative'
+            ),
+        ]
     
     def __str__(self):
         return self.name
@@ -253,7 +281,7 @@ class LimitedOffer(models.Model):
 class ProductReview(models.Model):
     """Product review and rating model - PostgreSQL version."""
     
-    product_id = models.IntegerField(db_index=True)  # Reference to Product.id
+    product_id = models.IntegerField(db_index=True)
     user_email = models.EmailField(db_index=True)
     user_name = models.CharField(max_length=100)
     
@@ -263,6 +291,7 @@ class ProductReview(models.Model):
     title = models.CharField(max_length=100, blank=True)
     review = models.TextField(blank=True)
     images = models.JSONField(default=list, blank=True)
+    videos = models.JSONField(default=list, blank=True)
     
     is_verified_purchase = models.BooleanField(default=False)
     order_number = models.CharField(max_length=50, blank=True)
@@ -286,8 +315,15 @@ class ProductReview(models.Model):
             models.Index(fields=['user_email']),
             models.Index(fields=['rating']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['is_approved']),
         ]
         ordering = ['-helpful_count', '-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(rating__gte=1, rating__lte=5),
+                name='product_review_rating_range'
+            ),
+        ]
     
     def __str__(self):
         return f"Review by {self.user_name} - {self.rating} stars"

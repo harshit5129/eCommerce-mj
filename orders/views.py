@@ -9,12 +9,12 @@ from django.utils.decorators import method_decorator
 from django.db import transaction
 from django.db.models import F
 from django.core.cache import cache
+from django.utils import timezone
 from decimal import Decimal, ROUND_HALF_UP
 import json
 import uuid
 import logging
 import re
-from datetime import datetime
 
 from orders.models import Order, OrderItem
 from products.models import Product
@@ -279,7 +279,7 @@ class CheckoutView(View):
                 return JsonResponse({'error': errors[0]}, status=400)
             
             # Generate order number
-            order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+            order_number = f"ORD-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
             
             with transaction.atomic():
                 # Create order
@@ -485,7 +485,7 @@ def cancel_order(request):
                     pass
             
             order.order_status = 'cancelled'
-            order.cancelled_at = datetime.utcnow()
+            order.cancelled_at = timezone.now()
             order.save(update_fields=['order_status', 'cancelled_at'])
         
         send_order_cancellation_email(order)

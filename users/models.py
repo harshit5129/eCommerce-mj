@@ -17,8 +17,10 @@ class User(AbstractUser):
     date_joined = models.DateTimeField(default=timezone.now)
     last_login = models.DateTimeField(null=True, blank=True)
     
+    username = models.CharField(max_length=150, blank=True, null=True, unique=True)
+    
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = []
     
     class Meta:
         db_table = 'users'

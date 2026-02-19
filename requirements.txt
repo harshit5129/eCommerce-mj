@@ -16,3 +16,5 @@ celery>=5.3
 flower>=2.0
 prometheus-client>=0.19
 razorpay>=1.4
+cryptography==46.0.5
+django-allauth==65.14.3

@@ -9,6 +9,7 @@ urlpatterns = [
     path('my-admin/', include(admin_urls.urlpatterns)),
     path('', include('products.urls')),
     path('accounts/', include('users.urls')),
+    path('accounts/', include('allauth.urls')),
     path('cart/', include('cart.urls')),
     path('orders/', include('orders.urls')),
     path('api/', include('products.api_urls')),

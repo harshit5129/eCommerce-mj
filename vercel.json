@@ -3,15 +3,10 @@
   "builds": [
     {
       "src": "wsgi.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "static/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "staticfiles/**",
-      "use": "@vercel/static"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
     }
   ],
   "routes": [
@@ -22,6 +17,10 @@
     {
       "src": "/staticfiles/(.*)",
       "dest": "/staticfiles/$1"
+    },
+    {
+      "src": "/media/(.*)",
+      "dest": "/media/$1"
     },
     {
       "src": "/(.*)",

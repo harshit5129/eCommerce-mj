@@ -24,26 +24,26 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='coupon',
-            constraint=models.CheckConstraint(check=models.Q(('discount_value__gte', 0)), name='coupon_discount_value_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('discount_value__gte', 0)), name='coupon_discount_value_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='coupon',
-            constraint=models.CheckConstraint(check=models.Q(('min_order_value__gte', 0)), name='coupon_min_order_value_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('min_order_value__gte', 0)), name='coupon_min_order_value_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='coupon',
-            constraint=models.CheckConstraint(check=models.Q(('max_discount__gte', 0)), name='coupon_max_discount_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('max_discount__gte', 0)), name='coupon_max_discount_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='couponusage',
-            constraint=models.CheckConstraint(check=models.Q(('discount_amount__gte', 0)), name='coupon_usage_discount_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('discount_amount__gte', 0)), name='coupon_usage_discount_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='limitedoffer',
-            constraint=models.CheckConstraint(check=models.Q(('discount_value__gte', 0)), name='limited_offer_discount_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('discount_value__gte', 0)), name='limited_offer_discount_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='productreview',
-            constraint=models.CheckConstraint(check=models.Q(('rating__gte', 1), ('rating__lte', 5)), name='product_review_rating_range'),
+            constraint=models.CheckConstraint(condition=models.Q(('rating__gte', 1), ('rating__lte', 5)), name='product_review_rating_range'),
         ),
     ]

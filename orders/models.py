@@ -84,23 +84,23 @@ class Order(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(subtotal__gte=0),
+                condition=models.Q(subtotal__gte=0),
                 name='order_subtotal_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(total__gte=0),
+                condition=models.Q(total__gte=0),
                 name='order_total_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(shipping_cost__gte=0),
+                condition=models.Q(shipping_cost__gte=0),
                 name='order_shipping_cost_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(tax__gte=0),
+                condition=models.Q(tax__gte=0),
                 name='order_tax_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(discount__gte=0),
+                condition=models.Q(discount__gte=0),
                 name='order_discount_non_negative'
             ),
         ]
@@ -168,11 +168,11 @@ class OrderItem(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(price__gte=0),
+                condition=models.Q(price__gte=0),
                 name='order_item_price_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(quantity__gte=1),
+                condition=models.Q(quantity__gte=1),
                 name='order_item_quantity_at_least_one'
             ),
         ]
@@ -245,7 +245,7 @@ class PaymentTransaction(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(amount__gte=0),
+                condition=models.Q(amount__gte=0),
                 name='payment_transaction_amount_non_negative'
             ),
         ]

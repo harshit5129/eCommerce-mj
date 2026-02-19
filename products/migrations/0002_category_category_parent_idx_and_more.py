@@ -28,18 +28,18 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='product',
-            constraint=models.CheckConstraint(check=models.Q(('price__gte', 0)), name='product_price_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('price__gte', 0)), name='product_price_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='product',
-            constraint=models.CheckConstraint(check=models.Q(('compare_price__gte', 0), ('compare_price__isnull', True), _connector='OR'), name='product_compare_price_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('compare_price__gte', 0), ('compare_price__isnull', True), _connector='OR'), name='product_compare_price_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='product',
-            constraint=models.CheckConstraint(check=models.Q(('cost_per_item__gte', 0), ('cost_per_item__isnull', True), _connector='OR'), name='product_cost_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('cost_per_item__gte', 0), ('cost_per_item__isnull', True), _connector='OR'), name='product_cost_non_negative'),
         ),
         migrations.AddConstraint(
             model_name='product',
-            constraint=models.CheckConstraint(check=models.Q(('weight__gte', 0), ('weight__isnull', True), _connector='OR'), name='product_weight_non_negative'),
+            constraint=models.CheckConstraint(condition=models.Q(('weight__gte', 0), ('weight__isnull', True), _connector='OR'), name='product_weight_non_negative'),
         ),
     ]

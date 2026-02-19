@@ -65,15 +65,15 @@ class Coupon(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(discount_value__gte=0),
+                condition=models.Q(discount_value__gte=0),
                 name='coupon_discount_value_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(min_order_value__gte=0),
+                condition=models.Q(min_order_value__gte=0),
                 name='coupon_min_order_value_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(max_discount__gte=0),
+                condition=models.Q(max_discount__gte=0),
                 name='coupon_max_discount_non_negative'
             ),
         ]
@@ -156,7 +156,7 @@ class CouponUsage(models.Model):
         ordering = ['-used_at']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(discount_amount__gte=0),
+                condition=models.Q(discount_amount__gte=0),
                 name='coupon_usage_discount_non_negative'
             ),
         ]
@@ -228,7 +228,7 @@ class LimitedOffer(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(discount_value__gte=0),
+                condition=models.Q(discount_value__gte=0),
                 name='limited_offer_discount_non_negative'
             ),
         ]
@@ -320,7 +320,7 @@ class ProductReview(models.Model):
         ordering = ['-helpful_count', '-created_at']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(rating__gte=1, rating__lte=5),
+                condition=models.Q(rating__gte=1, rating__lte=5),
                 name='product_review_rating_range'
             ),
         ]

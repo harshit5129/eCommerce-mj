@@ -134,19 +134,19 @@ class Product(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(price__gte=0),
+                condition=models.Q(price__gte=0),
                 name='product_price_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(compare_price__gte=0) | models.Q(compare_price__isnull=True),
+                condition=models.Q(compare_price__gte=0) | models.Q(compare_price__isnull=True),
                 name='product_compare_price_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(cost_per_item__gte=0) | models.Q(cost_per_item__isnull=True),
+                condition=models.Q(cost_per_item__gte=0) | models.Q(cost_per_item__isnull=True),
                 name='product_cost_non_negative'
             ),
             models.CheckConstraint(
-                check=models.Q(weight__gte=0) | models.Q(weight__isnull=True),
+                condition=models.Q(weight__gte=0) | models.Q(weight__isnull=True),
                 name='product_weight_non_negative'
             ),
         ]

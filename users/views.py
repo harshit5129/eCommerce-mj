@@ -203,7 +203,7 @@ class LoginView(View):
                             request.session['cart'] = old_session
                             request.session.modified = True
                         
-                        auth_login(request, user)
+                        auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                         messages.success(request, f'Welcome back, {user.first_name or user.username}!')
                         
                         # Safe redirect validation
@@ -245,7 +245,7 @@ class RegisterView(View):
                     last_name=form.cleaned_data.get('last_name', '')
                 )
                 
-                auth_login(request, user)
+                auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 messages.success(request, 'Account created successfully!')
                 return redirect('home')
                 

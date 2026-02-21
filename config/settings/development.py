@@ -1,5 +1,10 @@
+# Set DEBUG before importing base to avoid SECRET_KEY check
+import os
+os.environ['DEBUG'] = 'True'
+
 from .base import *
 
+# Override DEBUG to ensure it's True
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 

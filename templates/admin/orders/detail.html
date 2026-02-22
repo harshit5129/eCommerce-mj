@@ -28,7 +28,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 class="text-lg font-bold text-gray-800 mb-4">Order Items</h2>
             <div class="space-y-4">
-                {% for item in order.items %}
+                {% for item in order.items.all %}
                 <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
                     <div class="w-16 h-16 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
                         {% if item.product_image %}

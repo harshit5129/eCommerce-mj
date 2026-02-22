@@ -277,11 +277,6 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
         },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
-            'formatter': 'verbose',
-        },
     },
     'root': {
         'handlers': ['console'],
@@ -289,21 +284,17 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'ecommerce': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
         },
     },
 }
-
-# Create logs directory if it doesn't exist
-import pathlib
-pathlib.Path(BASE_DIR / 'logs').mkdir(exist_ok=True)
 
 # Razorpay Configuration
 RAZORPAY_KEY_ID = get_db_setting('RAZORPAY_KEY_ID', '')

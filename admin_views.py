@@ -327,7 +327,7 @@ class AdminProductListView(View):
         return super().dispatch(*args, **kwargs)
     
     def get(self, request):
-        products_list = Product.objects.order_by('-created_at')
+        products_list = Product.objects.select_related('category').order_by('-created_at')
         
         paginator = Paginator(products_list, 50)
         page = request.GET.get('page', 1)
@@ -382,14 +382,29 @@ class AdminProductCreateView(View):
                     pass
 
             # Parse price
+            MAX_PRICE = 999999999999.99  # max for DecimalField(max_digits=12, decimal_places=2)
             try:
                 price = float(request.POST.get('price', 0))
                 if price < 0:
                     raise ValueError("Price cannot be negative")
-            except ValueError:
-                messages.error(request, 'Invalid price')
+                if price > MAX_PRICE:
+                    raise ValueError(f"Price cannot exceed {MAX_PRICE:,.2f}")
+            except ValueError as e:
+                messages.error(request, f'Invalid price: {str(e)}')
                 categories = Category.objects.filter(is_active=True)
                 return render(request, self.template_name, {'product': None, 'action': 'Create', 'categories': categories})
+
+            # Parse compare_price
+            compare_price = None
+            if request.POST.get('compare_price'):
+                try:
+                    compare_price = float(request.POST.get('compare_price', 0))
+                    if compare_price > MAX_PRICE:
+                        raise ValueError(f"Compare price cannot exceed {MAX_PRICE:,.2f}")
+                except ValueError as e:
+                    messages.error(request, f'Invalid compare price: {str(e)}')
+                    categories = Category.objects.filter(is_active=True)
+                    return render(request, self.template_name, {'product': None, 'action': 'Create', 'categories': categories})
 
             product = Product.objects.create(
                 name=name[:255],
@@ -398,7 +413,7 @@ class AdminProductCreateView(View):
                 description=request.POST.get('description', ''),
                 short_description=request.POST.get('short_description', '')[:500],
                 price=price,
-                compare_price=float(request.POST.get('compare_price', 0)) if request.POST.get('compare_price') else None,
+                compare_price=compare_price,
                 category=category,
                 tags=[t.strip()[:50] for t in request.POST.get('tags', '').split(',') if t.strip()][:20],
                 stock_quantity=max(0, int(request.POST.get('stock_quantity', 0))),
@@ -855,7 +870,7 @@ class AdminReviewListView(View):
         return super().dispatch(*args, **kwargs)
     
     def get(self, request):
-        reviews_list = list(ProductReview.objects.order_by('-created_at'))
+        reviews_list = ProductReview.objects.order_by('-created_at')
         
         paginator = Paginator(reviews_list, 50)
         page = request.GET.get('page', 1)

@@ -64,19 +64,19 @@ class Product(models.Model):
     short_description = models.CharField(max_length=500, blank=True)
     
     price = models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(0)]
     )
     compare_price = models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(0)]
     )
     cost_per_item = models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,

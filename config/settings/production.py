@@ -1,4 +1,5 @@
 from .base import *
+import urllib.parse
 
 DEBUG = False
 
@@ -8,6 +9,40 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 X_FRAME_OPTIONS = 'DENY'
+
+# Parse DATABASE_URL if provided (Render, Heroku, etc.)
+database_url = get_env_setting('DATABASE_URL', '')
+if database_url:
+    parsed = urllib.parse.urlparse(database_url)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path[1:],  # Remove leading '/'
+            'USER': parsed.username,
+            'PASSWORD': parsed.password,
+            'HOST': parsed.hostname,
+            'PORT': parsed.port or '5432',
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {
+                'connect_timeout': 10,
+            },
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': get_env_setting('DB_NAME', 'ecomm_db'),
+            'USER': get_env_setting('DB_USER', 'postgres'),
+            'PASSWORD': get_env_setting('DB_PASSWORD', ''),
+            'HOST': get_env_setting('DB_HOST', 'localhost'),
+            'PORT': get_env_setting('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {
+                'connect_timeout': 10,
+            },
+        }
+    }
 
 CSRF_COOKIE_SECURE = str(get_db_setting('CSRF_COOKIE_SECURE', 'True')).lower() == 'true'
 SESSION_COOKIE_SECURE = str(get_db_setting('SESSION_COOKIE_SECURE', 'True')).lower() == 'true'
@@ -21,21 +56,6 @@ if str(get_db_setting('SECURE_HSTS', 'False')).lower() == 'true':
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': get_env_setting('DB_NAME', 'ecomm_db'),
-        'USER': get_env_setting('DB_USER', 'postgres'),
-        'PASSWORD': get_env_setting('DB_PASSWORD', ''),
-        'HOST': get_env_setting('DB_HOST', 'localhost'),
-        'PORT': get_env_setting('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'connect_timeout': 10,
-        },
-    }
-}
 
 redis_url = get_env_setting('REDIS_URL', '')
 if redis_url:

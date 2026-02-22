@@ -8,7 +8,8 @@ from admin_views import (
     AdminCouponListView, AdminCouponCreateView, AdminCouponEditView, AdminCouponDeleteView,
     AdminOfferListView, AdminOfferCreateView, AdminOfferEditView, AdminOfferDeleteView,
     AdminReviewListView, AdminReviewApproveView, AdminReviewExportView,
-    AdminNotificationListView, AdminNotificationMarkReadView, AdminNotificationMarkAllReadView
+    AdminNotificationListView, AdminNotificationMarkReadView, AdminNotificationMarkAllReadView,
+    AdminSetupView, AdminSetupTestView, AdminSetupExportView
 )
 from analytics.views import AnalyticsDashboardView
 
@@ -51,4 +52,8 @@ urlpatterns = [
     path('notifications/', AdminNotificationListView.as_view(), name='admin_notifications'),
     path('notifications/<str:notification_id>/read/', AdminNotificationMarkReadView.as_view(), name='admin_notification_read'),
     path('notifications/mark-all-read/', AdminNotificationMarkAllReadView.as_view(), name='admin_notifications_mark_all_read'),
+    
+    path('setup/', AdminSetupView.as_view(), name='admin_setup'),
+    path('setup/test/', AdminSetupTestView.as_view(), name='admin_setup_test'),
+    path('setup/export/', AdminSetupExportView.as_view(), name='admin_setup_export'),
 ]

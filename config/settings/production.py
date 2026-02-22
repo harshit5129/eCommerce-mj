@@ -1,24 +1,23 @@
-import os
 from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = str(get_setting('ALLOWED_HOSTS', '')).split(',') if get_setting('ALLOWED_HOSTS') else ['localhost', '127.0.0.1']
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 X_FRAME_OPTIONS = 'DENY'
 
-CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True') == 'True'
-SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True') == 'True'
+CSRF_COOKIE_SECURE = str(get_setting('CSRF_COOKIE_SECURE', 'True')).lower() == 'true'
+SESSION_COOKIE_SECURE = str(get_setting('SESSION_COOKIE_SECURE', 'True')).lower() == 'true'
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
 
-SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'
+SECURE_SSL_REDIRECT = str(get_setting('SECURE_SSL_REDIRECT', 'False')).lower() == 'true'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-if os.getenv('SECURE_HSTS', 'False') == 'True':
+if str(get_setting('SECURE_HSTS', 'False')).lower() == 'true':
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
@@ -26,11 +25,11 @@ if os.getenv('SECURE_HSTS', 'False') == 'True':
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'ecomm_db'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'NAME': get_setting('DB_NAME', 'ecomm_db'),
+        'USER': get_setting('DB_USER', 'postgres'),
+        'PASSWORD': get_setting('DB_PASSWORD', ''),
+        'HOST': get_setting('DB_HOST', 'localhost'),
+        'PORT': get_setting('DB_PORT', '5432'),
         'CONN_MAX_AGE': 600,
         'OPTIONS': {
             'connect_timeout': 10,
@@ -38,7 +37,7 @@ DATABASES = {
     }
 }
 
-redis_url = os.getenv('REDIS_URL', '')
+redis_url = get_setting('REDIS_URL', '')
 if redis_url:
     CACHES = {
         'default': {
@@ -68,7 +67,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
+    'core.middleware.SecurityHeadersMiddleware',
     'core.middleware.RateLimitMiddleware',
+    'core.middleware.AuthenticationRateLimitMiddleware',
+    'core.middleware.RequestLoggingMiddleware',
+    'core.middleware.CacheControlMiddleware',
 ]
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -95,7 +99,7 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['console'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'level': get_setting('DJANGO_LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
         'django.request': {
@@ -107,12 +111,12 @@ LOGGING = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if os.getenv('CORS_ALLOWED_ORIGINS') else []
+CORS_ALLOWED_ORIGINS = str(get_setting('CORS_ALLOWED_ORIGINS', '')).split(',') if get_setting('CORS_ALLOWED_ORIGINS') else []
 
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if os.getenv('CSRF_TRUSTED_ORIGINS') else []
+CSRF_TRUSTED_ORIGINS = str(get_setting('CSRF_TRUSTED_ORIGINS', '')).split(',') if get_setting('CSRF_TRUSTED_ORIGINS') else []
 
-RATE_LIMIT_REQUESTS = int(os.getenv('RATE_LIMIT_REQUESTS', '100'))
-RATE_LIMIT_PERIOD = int(os.getenv('RATE_LIMIT_PERIOD', '60'))
+RATE_LIMIT_REQUESTS = int(get_setting('RATE_LIMIT_REQUESTS', '100'))
+RATE_LIMIT_PERIOD = int(get_setting('RATE_LIMIT_PERIOD', '60'))
 
 REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
     'rest_framework.throttling.AnonRateThrottle',

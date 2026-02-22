@@ -1,0 +1,247 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Setup - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-white">Environment Setup</h1>
+    <p class="text-gray-400 mt-1">Configure your application settings</p>
+</div>
+
+<div class="bg-gradient-to-r from-primary-900/50 to-secondary-900/50 rounded-lg p-4 mb-6 border border-primary-800/30">
+    <div class="flex items-start">
+        <svg class="w-5 h-5 text-secondary-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+            <h3 class="text-white font-medium">Configuration Guide</h3>
+            <p class="text-gray-400 text-sm mt-1">Settings are stored in the database and take precedence over environment variables. Required fields are marked with an asterisk (*).</p>
+        </div>
+    </div>
+</div>
+
+<form method="post" id="setupForm">
+    {% csrf_token %}
+    
+    <div class="space-y-6">
+        {% for category, settings in settings_by_category.items %}
+        <div class="bg-dark-900/50 rounded-lg border border-dark-700/50 overflow-hidden">
+            <div class="bg-dark-800/50 px-6 py-4 border-b border-dark-700/50">
+                <h2 class="text-lg font-semibold text-white capitalize flex items-center">
+                    {% if category == 'database' %}
+                    <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                    </svg>
+                    {% elif category == 'email' %}
+                    <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    {% elif category == 'payment' %}
+                    <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                    </svg>
+                    {% elif category == 'security' %}
+                    <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    {% elif category == 'redis' %}
+                    <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    {% elif category == 'social' %}
+                    <svg class="w-5 h-5 mr-2 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    {% else %}
+                    <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    {% endif %}
+                    {{ category|title }}
+                </h2>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                {% for setting in settings %}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                    <div class="md:col-span-1">
+                        <label class="block text-sm font-medium text-gray-300" for="{{ setting.key }}">
+                            {{ setting.key }}
+                            {% if setting.is_required %}
+                            <span class="text-red-400">*</span>
+                            {% endif %}
+                        </label>
+                        <p class="text-xs text-gray-500 mt-1">{{ setting.description }}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        {% if setting.setting_type == 'boolean' %}
+                        <select name="{{ setting.key }}" id="{{ setting.key }}" class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="True" {% if setting.value == 'True' %}selected{% endif %}>True</option>
+                            <option value="False" {% if setting.value == 'False' or not setting.value %}selected{% endif %}>False</option>
+                        </select>
+                        {% elif setting.setting_type == 'password' %}
+                        <div class="relative">
+                            <input type="password" name="{{ setting.key }}" id="{{ setting.key }}" value="{{ setting.value }}" 
+                                class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-10"
+                                placeholder="••••••••"
+                                {% if setting.is_required %}required{% endif %}>
+                            <button type="button" onclick="togglePassword('{{ setting.key }}')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        {% elif setting.setting_type == 'integer' %}
+                        <input type="number" name="{{ setting.key }}" id="{{ setting.key }}" value="{{ setting.value }}" 
+                            class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            {% if setting.is_required %}required{% endif %}>
+                        {% elif setting.setting_type == 'email' %}
+                        <input type="email" name="{{ setting.key }}" id="{{ setting.key }}" value="{{ setting.value }}" 
+                            class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            {% if setting.is_required %}required{% endif %}>
+                        {% elif setting.setting_type == 'url' %}
+                        <input type="url" name="{{ setting.key }}" id="{{ setting.key }}" value="{{ setting.value }}" 
+                            class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            {% if setting.is_required %}required{% endif %}>
+                        {% else %}
+                        <input type="text" name="{{ setting.key }}" id="{{ setting.key }}" value="{{ setting.value }}" 
+                            class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            {% if setting.is_required %}required{% endif %}>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if category == 'database' %}
+                <div class="pt-2">
+                    <button type="button" onclick="testConnection('database')" class="text-sm text-blue-400 hover:text-blue-300 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Test Database Connection
+                    </button>
+                </div>
+                {% endif %}
+                
+                {% if category == 'redis' %}
+                <div class="pt-2">
+                    <button type="button" onclick="testConnection('redis')" class="text-sm text-purple-400 hover:text-purple-300 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Test Redis Connection
+                    </button>
+                </div>
+                {% endif %}
+                
+                {% if category == 'email' %}
+                <div class="pt-2">
+                    <button type="button" onclick="testConnection('email')" class="text-sm text-green-400 hover:text-green-300 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Test Email Connection
+                    </button>
+                </div>
+                {% endif %}
+                
+                {% if category == 'payment' %}
+                <div class="pt-2">
+                    <button type="button" onclick="testConnection('razorpay')" class="text-sm text-yellow-400 hover:text-yellow-300 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Test Razorpay Connection
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="mt-6 flex items-center justify-between">
+        <a href="{% url 'admin_setup_export' %}" class="text-gray-400 hover:text-white flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Export to .env
+        </a>
+        <button type="submit" class="bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-500 hover:to-secondary-500 text-white font-medium px-6 py-2 rounded-lg transition-all flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Save Settings
+        </button>
+    </div>
+</form>
+
+<div id="testResultModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border border-dark-700">
+        <div class="flex items-center mb-4">
+            <div id="testResultIcon" class="w-10 h-10 rounded-full flex items-center justify-center mr-3"></div>
+            <h3 id="testResultTitle" class="text-lg font-semibold text-white"></h3>
+        </div>
+        <p id="testResultMessage" class="text-gray-400"></p>
+        <button onclick="closeTestModal()" class="mt-4 w-full bg-dark-700 hover:bg-dark-600 text-white py-2 rounded-lg">Close</button>
+    </div>
+</div>
+
+<script>
+function togglePassword(fieldId) {
+    const input = document.getElementById(fieldId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function testConnection(type) {
+    const formData = new FormData(document.getElementById('setupForm'));
+    formData.set('test_type', type);
+    
+    fetch('{% url "admin_setup_test" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showTestResult(data.success, data.message);
+    })
+    .catch(error => {
+        showTestResult(false, 'An error occurred: ' + error);
+    });
+}
+
+function showTestResult(success, message) {
+    const modal = document.getElementById('testResultModal');
+    const icon = document.getElementById('testResultIcon');
+    const title = document.getElementById('testResultTitle');
+    const msg = document.getElementById('testResultMessage');
+    
+    if (success) {
+        icon.innerHTML = '<svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+        icon.className = 'w-10 h-10 rounded-full flex items-center justify-center mr-3 bg-green-500/20';
+        title.textContent = 'Success';
+        title.className = 'text-lg font-semibold text-green-400';
+    } else {
+        icon.innerHTML = '<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+        icon.className = 'w-10 h-10 rounded-full flex items-center justify-center mr-3 bg-red-500/20';
+        title.textContent = 'Failed';
+        title.className = 'text-lg font-semibold text-red-400';
+    }
+    
+    msg.textContent = message;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeTestModal() {
+    const modal = document.getElementById('testResultModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+</script>
+{% endblock %}

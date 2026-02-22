@@ -7,11 +7,32 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+def get_setting(key, default=None, required=False):
+    """
+    Get setting from database first, then fall back to environment variable.
+    This allows admin to override settings from the setup page.
+    """
+    try:
+        from core.models import SiteConfiguration
+        db_value = SiteConfiguration.get(key, None)
+        if db_value is not None:
+            return db_value
+    except Exception:
+        pass
+    
+    env_value = os.getenv(key, default)
+    
+    if required and env_value is None:
+        raise ImproperlyConfigured(f'{key} is required but not set')
+    
+    return env_value
 
-# Generate a default secret key for development if not provided
+
+SECRET_KEY = get_setting('SECRET_KEY')
+
+DEBUG = str(get_setting('DEBUG', 'False')).lower() == 'true'
+
 if not SECRET_KEY:
     if DEBUG:
         import secrets
@@ -19,7 +40,7 @@ if not SECRET_KEY:
     else:
         raise ImproperlyConfigured('SECRET_KEY environment variable is required in production')
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = str(get_setting('ALLOWED_HOSTS', 'localhost,127.0.0.1')).split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -104,11 +125,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'ecomm_db'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'NAME': get_setting('DB_NAME', 'ecomm_db'),
+        'USER': get_setting('DB_USER', 'postgres'),
+        'PASSWORD': get_setting('DB_PASSWORD', ''),
+        'HOST': get_setting('DB_HOST', 'localhost'),
+        'PORT': get_setting('DB_PORT', '5432'),
         'OPTIONS': {
             'connect_timeout': 10,
         },
@@ -192,33 +213,32 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', SECRET_KEY)
-JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
-JWT_ACCESS_TOKEN_LIFETIME = int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME', 60))
-JWT_REFRESH_TOKEN_LIFETIME = int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME', 1440))
+JWT_SECRET_KEY = get_setting('JWT_SECRET_KEY', SECRET_KEY)
+JWT_ALGORITHM = get_setting('JWT_ALGORITHM', 'HS256')
+JWT_ACCESS_TOKEN_LIFETIME = int(get_setting('JWT_ACCESS_TOKEN_LIFETIME', 60))
+JWT_REFRESH_TOKEN_LIFETIME = int(get_setting('JWT_REFRESH_TOKEN_LIFETIME', 1440))
 
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8000').split(',')
+CORS_ALLOWED_ORIGINS = str(get_setting('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8000')).split(',')
 
-RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', 60))
+RATE_LIMIT_PER_MINUTE = int(get_setting('RATE_LIMIT_PER_MINUTE', 60))
 
-SITE_NAME = os.getenv('SITE_NAME', 'E-Commerce Store')
-SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
+SITE_NAME = get_setting('SITE_NAME', 'E-Commerce Store')
+SITE_URL = get_setting('SITE_URL', 'http://localhost:8000')
 
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@example.com')
+EMAIL_BACKEND = get_setting('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = get_setting('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(get_setting('EMAIL_PORT', 587))
+EMAIL_USE_TLS = str(get_setting('EMAIL_USE_TLS', 'True')).lower() == 'true'
+EMAIL_HOST_USER = get_setting('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = get_setting('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = get_setting('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@example.com')
 
-PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', 3600))
+PASSWORD_RESET_TIMEOUT = int(get_setting('PASSWORD_RESET_TIMEOUT', 3600))
 
-# Cache configuration
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        'LOCATION': get_setting('REDIS_URL', 'redis://127.0.0.1:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
@@ -229,12 +249,11 @@ CACHES = {
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
 
-RATE_LIMIT_REQUESTS = int(os.getenv('RATE_LIMIT_REQUESTS', '100'))
-RATE_LIMIT_PERIOD = int(os.getenv('RATE_LIMIT_PERIOD', '60'))
+RATE_LIMIT_REQUESTS = int(get_setting('RATE_LIMIT_REQUESTS', '100'))
+RATE_LIMIT_PERIOD = int(get_setting('RATE_LIMIT_PERIOD', '60'))
 
-# Celery Configuration
-CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_BROKER_URL = get_setting('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = get_setting('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -288,9 +307,9 @@ import pathlib
 pathlib.Path(BASE_DIR / 'logs').mkdir(exist_ok=True)
 
 # Razorpay Configuration
-RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
-RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
-RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
+RAZORPAY_KEY_ID = get_setting('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = get_setting('RAZORPAY_KEY_SECRET', '')
+RAZORPAY_WEBHOOK_SECRET = get_setting('RAZORPAY_WEBHOOK_SECRET', '')
 
 # Payment Methods
 PAYMENT_METHODS = {
@@ -323,12 +342,11 @@ SOCIALACCOUNT_PROVIDERS = {
         },
         'OAUTH_PKCE_ENABLED': True,
         'APP': {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
-            'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
+            'client_id': get_setting('GOOGLE_CLIENT_ID', ''),
+            'secret': get_setting('GOOGLE_CLIENT_SECRET', ''),
         }
     }
 }
 
-# Get Google OAuth credentials from environment
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
+GOOGLE_CLIENT_ID = get_setting('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = get_setting('GOOGLE_CLIENT_SECRET', '')

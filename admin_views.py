@@ -1270,3 +1270,186 @@ class AdminProductImageSetPrimaryView(View):
         except Exception as e:
             logger.error(f"Set primary image failed: {e}", exc_info=True)
             return JsonResponse({'error': 'An error occurred'}, status=500)
+
+
+class AdminSetupView(View):
+    """Admin setup page for environment variables."""
+    
+    template_name = 'admin/setup.html'
+    
+    DEFAULT_SETTINGS = [
+        {'key': 'SECRET_KEY', 'description': 'Django secret key for security', 'setting_type': 'password', 'category': 'security', 'is_required': True},
+        {'key': 'DEBUG', 'description': 'Enable debug mode (True/False)', 'setting_type': 'boolean', 'category': 'general', 'is_required': True},
+        {'key': 'ALLOWED_HOSTS', 'description': 'Comma-separated list of allowed hosts', 'setting_type': 'string', 'category': 'security', 'is_required': True},
+        {'key': 'DB_NAME', 'description': 'Database name', 'setting_type': 'string', 'category': 'database', 'is_required': True},
+        {'key': 'DB_USER', 'description': 'Database username', 'setting_type': 'string', 'category': 'database', 'is_required': True},
+        {'key': 'DB_PASSWORD', 'description': 'Database password', 'setting_type': 'password', 'category': 'database', 'is_required': True},
+        {'key': 'DB_HOST', 'description': 'Database host', 'setting_type': 'string', 'category': 'database', 'is_required': True},
+        {'key': 'DB_PORT', 'description': 'Database port', 'setting_type': 'integer', 'category': 'database', 'is_required': False},
+        {'key': 'REDIS_URL', 'description': 'Redis connection URL', 'setting_type': 'url', 'category': 'redis', 'is_required': False},
+        {'key': 'EMAIL_HOST', 'description': 'SMTP server host', 'setting_type': 'string', 'category': 'email', 'is_required': False},
+        {'key': 'EMAIL_PORT', 'description': 'SMTP server port', 'setting_type': 'integer', 'category': 'email', 'is_required': False},
+        {'key': 'EMAIL_USE_TLS', 'description': 'Use TLS for email (True/False)', 'setting_type': 'boolean', 'category': 'email', 'is_required': False},
+        {'key': 'EMAIL_HOST_USER', 'description': 'SMTP username', 'setting_type': 'email', 'category': 'email', 'is_required': False},
+        {'key': 'EMAIL_HOST_PASSWORD', 'description': 'SMTP password', 'setting_type': 'password', 'category': 'email', 'is_required': False},
+        {'key': 'RAZORPAY_KEY_ID', 'description': 'Razorpay Key ID', 'setting_type': 'string', 'category': 'payment', 'is_required': False},
+        {'key': 'RAZORPAY_KEY_SECRET', 'description': 'Razorpay Key Secret', 'setting_type': 'password', 'category': 'payment', 'is_required': False},
+        {'key': 'GOOGLE_CLIENT_ID', 'description': 'Google OAuth Client ID', 'setting_type': 'string', 'category': 'social', 'is_required': False},
+        {'key': 'GOOGLE_CLIENT_SECRET', 'description': 'Google OAuth Client Secret', 'setting_type': 'password', 'category': 'social', 'is_required': False},
+        {'key': 'SITE_NAME', 'description': 'Website name', 'setting_type': 'string', 'category': 'general', 'is_required': False},
+        {'key': 'SITE_URL', 'description': 'Website URL', 'setting_type': 'url', 'category': 'general', 'is_required': False},
+        {'key': 'JWT_SECRET_KEY', 'description': 'JWT secret key', 'setting_type': 'password', 'category': 'security', 'is_required': False},
+        {'key': 'CORS_ALLOWED_ORIGINS', 'description': 'Comma-separated CORS origins', 'setting_type': 'string', 'category': 'security', 'is_required': False},
+        {'key': 'CSRF_TRUSTED_ORIGINS', 'description': 'Comma-separated CSRF trusted origins', 'setting_type': 'string', 'category': 'security', 'is_required': False},
+    ]
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_superuser, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        from core.models import SiteConfiguration
+        
+        settings_by_category = {}
+        for setting in self.DEFAULT_SETTINGS:
+            category = setting['category']
+            if category not in settings_by_category:
+                settings_by_category[category] = []
+            
+            try:
+                config = SiteConfiguration.objects.get(key=setting['key'])
+                setting['value'] = config.value
+                setting['exists'] = True
+            except SiteConfiguration.DoesNotExist:
+                setting['value'] = os.getenv(setting['key'], '')
+                setting['exists'] = False
+            
+            settings_by_category[category].append(setting)
+        
+        context = {
+            'settings_by_category': settings_by_category,
+        }
+        return render(request, self.template_name, context)
+    
+    def post(self, request):
+        from core.models import SiteConfiguration
+        
+        updated_count = 0
+        for key in request.POST:
+            if key in [s['key'] for s in self.DEFAULT_SETTINGS]:
+                value = request.POST.get(key, '').strip()
+                setting_info = next((s for s in self.DEFAULT_SETTINGS if s['key'] == key), None)
+                
+                SiteConfiguration.objects.update_or_create(
+                    key=key,
+                    defaults={
+                        'value': value,
+                        'description': setting_info.get('description', '') if setting_info else '',
+                        'setting_type': setting_info.get('setting_type', 'string') if setting_info else 'string',
+                        'category': setting_info.get('category', 'general') if setting_info else 'general',
+                        'is_secret': setting_info.get('setting_type') == 'password' if setting_info else False,
+                        'is_required': setting_info.get('is_required', False) if setting_info else False,
+                    }
+                )
+                updated_count += 1
+        
+        log_admin_action(request, 'UPDATE', 'SiteConfiguration', changes={'updated_count': updated_count})
+        messages.success(request, f'Settings updated successfully! {updated_count} settings saved.')
+        return redirect('admin_setup')
+
+
+class AdminSetupTestView(View):
+    """Test configuration settings."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_superuser, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        from core.models import SiteConfiguration
+        import smtplib
+        from django.core.mail import get_connection
+        
+        test_type = request.POST.get('test_type')
+        results = {'success': False, 'message': ''}
+        
+        try:
+            if test_type == 'database':
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    cursor.execute('SELECT 1')
+                results = {'success': True, 'message': 'Database connection successful!'}
+                
+            elif test_type == 'redis':
+                redis_url = SiteConfiguration.get('REDIS_URL') or os.getenv('REDIS_URL', '')
+                if redis_url:
+                    import redis as redis_client
+                    r = redis_client.from_url(redis_url)
+                    r.ping()
+                    results = {'success': True, 'message': 'Redis connection successful!'}
+                else:
+                    results = {'success': False, 'message': 'Redis URL not configured'}
+                    
+            elif test_type == 'email':
+                email_host = SiteConfiguration.get('EMAIL_HOST') or os.getenv('EMAIL_HOST', '')
+                email_port = int(SiteConfiguration.get('EMAIL_PORT') or os.getenv('EMAIL_PORT', '587'))
+                email_user = SiteConfiguration.get('EMAIL_HOST_USER') or os.getenv('EMAIL_HOST_USER', '')
+                email_password = SiteConfiguration.get('EMAIL_HOST_PASSWORD') or os.getenv('EMAIL_HOST_PASSWORD', '')
+                email_use_tls = SiteConfiguration.get('EMAIL_USE_TLS') or os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+                
+                if email_host and email_user:
+                    with smtplib.SMTP(email_host, email_port) as server:
+                        if email_use_tls:
+                            server.starttls()
+                        server.login(email_user, email_password)
+                    results = {'success': True, 'message': 'Email connection successful!'}
+                else:
+                    results = {'success': False, 'message': 'Email settings not configured'}
+                    
+            elif test_type == 'razorpay':
+                key_id = SiteConfiguration.get('RAZORPAY_KEY_ID') or os.getenv('RAZORPAY_KEY_ID', '')
+                key_secret = SiteConfiguration.get('RAZORPAY_KEY_SECRET') or os.getenv('RAZORPAY_KEY_SECRET', '')
+                
+                if key_id and key_secret:
+                    import razorpay
+                    client = razorpay.Client(auth=(key_id, key_secret))
+                    client.payment.all({'count': 1})
+                    results = {'success': True, 'message': 'Razorpay connection successful!'}
+                else:
+                    results = {'success': False, 'message': 'Razorpay settings not configured'}
+                    
+        except Exception as e:
+            results = {'success': False, 'message': f'Connection failed: {str(e)}'}
+        
+        return JsonResponse(results)
+
+
+class AdminSetupExportView(View):
+    """Export settings to .env file format."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_superuser, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        from core.models import SiteConfiguration
+        from django.http import HttpResponse
+        
+        settings = SiteConfiguration.objects.all()
+        env_content = "# Environment Variables - Generated from Admin Setup\n"
+        env_content += f"# Generated on {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        for setting in settings:
+            env_content += f"# {setting.description}\n"
+            if setting.is_secret:
+                env_content += f"{setting.key}=*****\n"
+            else:
+                env_content += f"{setting.key}={setting.value}\n"
+            env_content += "\n"
+        
+        response = HttpResponse(env_content, content_type='text/plain')
+        response['Content-Disposition'] = 'attachment; filename=".env.example"'
+        return response

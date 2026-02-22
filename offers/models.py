@@ -44,7 +44,7 @@ class Coupon(models.Model):
     per_user_limit = models.PositiveIntegerField(default=1)
     
     valid_from = models.DateTimeField(default=timezone.now)
-    valid_until = models.DateTimeField()
+    valid_until = models.DateTimeField(null=True, blank=True)
     
     is_active = models.BooleanField(default=True)
     is_first_order_only = models.BooleanField(default=False)

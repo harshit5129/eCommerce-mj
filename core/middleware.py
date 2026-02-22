@@ -19,8 +19,8 @@ class RateLimitMiddleware:
         self.period = getattr(settings, 'RATE_LIMIT_PERIOD', 60)
     
     def __call__(self, request):
-        # Skip rate limiting for static/media/health paths
-        skip_paths = ('/static/', '/media/', '/admin/', '/health/', '/favicon.ico')
+        # Skip rate limiting for static/media/health/admin paths
+        skip_paths = ('/static/', '/media/', '/admin/', '/my-admin/', '/health/', '/favicon.ico')
         if request.path.startswith(skip_paths):
             return self.get_response(request)
         
@@ -63,9 +63,9 @@ class RateLimitMiddleware:
         return f"rate_limit:ip:{ip}"
     
     def _get_limit_for_request(self, request):
-        if request.user.is_staff or request.user.is_superuser:
-            return self.requests_limit * 10
         if request.user.is_authenticated:
+            if request.user.is_staff or request.user.is_superuser:
+                return self.requests_limit * 10
             return self.requests_limit * 3
         return self.requests_limit
 

@@ -38,7 +38,7 @@ class LimitedOfferAdmin(admin.ModelAdmin):
 class ProductReviewAdmin(admin.ModelAdmin):
     list_display = ['product_id', 'user_name', 'rating', 'is_verified_purchase', 'is_approved', 'created_at']
     list_filter = ['rating', 'is_approved', 'is_verified_purchase', 'created_at']
-    search_fields = ['product_name', 'user_name', 'review']
+    search_fields = ['product_id', 'user_name', 'user_email', 'review', 'title']
     list_editable = ['is_approved']
     date_hierarchy = 'created_at'
 

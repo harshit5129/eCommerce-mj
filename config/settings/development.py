@@ -5,21 +5,23 @@ os.environ['DEBUG'] = 'True'
 from .base import *
 
 # Override DEBUG to ensure it's True
-DEBUG = False
-ALLOWED_HOSTS = ['*']
+DEBUG = True
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
 
-# Use PostgreSQL from environment variables (Supabase)
+# CSRF trusted origins for development
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:3000']
+
+# Use PostgreSQL from environment variables
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'postgres'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'db.cxodyklfibcukboyoaae.supabase.co'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'NAME': get_env_setting('DB_NAME', 'postgres'),
+        'USER': get_env_setting('DB_USER', 'postgres'),
+        'PASSWORD': get_env_setting('DB_PASSWORD', ''),
+        'HOST': get_env_setting('DB_HOST', 'localhost'),
+        'PORT': get_env_setting('DB_PORT', '5432'),
         'OPTIONS': {
             'connect_timeout': 10,
-            'sslmode': 'require',
         },
     }
 }

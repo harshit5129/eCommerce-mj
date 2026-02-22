@@ -21,27 +21,10 @@ def get_env_setting(key, default=None, required=False):
 
 def get_db_setting(key, default=None):
     """
-    Get setting from database if available, otherwise fall back to env.
-    Only works after Django is fully initialized.
+    Get setting from environment variable.
+    Database-stored settings can be accessed via SiteConfiguration.get() after Django is initialized.
     """
-    env_value = os.getenv(key, default)
-    
-    try:
-        from django.db import connection
-        if connection.connection is None or connection.connection.closed:
-            return env_value
-    except Exception:
-        return env_value
-    
-    try:
-        from core.models import SiteConfiguration
-        db_value = SiteConfiguration.get(key, None)
-        if db_value is not None:
-            return db_value
-    except Exception:
-        pass
-    
-    return env_value
+    return os.getenv(key, default)
 
 
 SECRET_KEY = get_env_setting('SECRET_KEY')
@@ -70,6 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
     'allauth',

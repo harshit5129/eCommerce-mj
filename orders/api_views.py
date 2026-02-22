@@ -84,17 +84,71 @@ class CreateOrderAPIView(APIView):
         
         address_data = serializer.validated_data['shipping_address']
         
-        cart_total = sum(
-            item.get('product_price', 0) * item.get('quantity', 1) 
-            for item in cart
-        )
-        shipping_cost = float(serializer.validated_data.get('shipping_cost', 9.99))
-        tax = float(serializer.validated_data.get('tax', cart_total * 0.08))
+        # Validate cart items and get actual prices from database
+        validated_items = []
+        cart_total = 0
+        
+        for item in cart:
+            try:
+                product_id = int(item.get('product_id'))
+                quantity = int(item.get('quantity', 1))
+                
+                if quantity < 1:
+                    continue
+                
+                # Fetch actual product price from database to prevent price manipulation
+                try:
+                    product = Product.objects.get(id=product_id, status='active')
+                except Product.DoesNotExist:
+                    return Response(
+                        {'error': f'Product {product_id} not found or unavailable'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Check inventory if tracking is enabled
+                if product.track_inventory and product.stock_quantity < quantity:
+                    return Response(
+                        {'error': f'Insufficient stock for {product.name}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                actual_price = float(product.sale_price if product.sale_price else product.price)
+                item_total = actual_price * quantity
+                cart_total += item_total
+                
+                validated_items.append({
+                    'product_id': product_id,
+                    'product_name': product.name,
+                    'product_image': product.primary_image.url if product.primary_image else '',
+                    'price': actual_price,
+                    'quantity': quantity,
+                })
+                
+            except (ValueError, TypeError) as e:
+                return Response(
+                    {'error': f'Invalid cart item data: {str(e)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        if not validated_items:
+            return Response(
+                {'error': 'No valid items in cart'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Calculate shipping and tax
+        shipping_cost = 99.0 if cart_total < 4000 else 0.0
+        tax = round(cart_total * 0.18, 2)
         discount = float(serializer.validated_data.get('discount', 0))
         total = cart_total + shipping_cost + tax - discount
         
         order_number = f"ORD-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         user_id = str(request.user.id) if hasattr(request.user, 'id') and request.user.is_authenticated else 'guest'
+        
+        # Validate payment method
+        payment_method = serializer.validated_data.get('payment_method', 'cod')
+        if payment_method not in ['razorpay', 'cod']:
+            payment_method = 'cod'
         
         with transaction.atomic():
             # Create order
@@ -118,31 +172,25 @@ class CreateOrderAPIView(APIView):
                     'postal_code': address_data.get('postal_code'),
                     'country': address_data.get('country', 'USA'),
                 },
-                payment_method=serializer.validated_data.get('payment_method', 'cash'),
+                payment_method=payment_method,
                 notes=serializer.validated_data.get('notes', ''),
             )
             
             # Create order items and deduct inventory
-            for item in cart:
-                try:
-                    product_id = int(item.get('product_id'))
-                    quantity = int(item.get('quantity', 1))
-                    
-                    OrderItem.objects.create(
-                        order=order,
-                        product_id=product_id,
-                        product_name=item.get('product_name'),
-                        product_image=item.get('product_image', ''),
-                        price=item.get('product_price', 0),
-                        quantity=quantity,
-                    )
-                    
-                    # Deduct inventory atomically
-                    Product.objects.filter(id=product_id, track_inventory=True).update(
-                        stock_quantity=F('stock_quantity') - quantity
-                    )
-                except (ValueError, TypeError):
-                    pass
+            for item in validated_items:
+                OrderItem.objects.create(
+                    order=order,
+                    product_id=item['product_id'],
+                    product_name=item['product_name'],
+                    product_image=item['product_image'],
+                    price=item['price'],
+                    quantity=item['quantity'],
+                )
+                
+                # Deduct inventory atomically
+                Product.objects.filter(id=item['product_id'], track_inventory=True).update(
+                    stock_quantity=F('stock_quantity') - item['quantity']
+                )
         
         request.session['cart'] = []
         request.session.modified = True

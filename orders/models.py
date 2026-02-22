@@ -25,6 +25,7 @@ class Order(models.Model):
     
     PAYMENT_METHOD_CHOICES = [
         ('razorpay', 'Razorpay'),
+        ('cod', 'Cash on Delivery'),
     ]
     
     order_number = models.CharField(max_length=50, unique=True, db_index=True)

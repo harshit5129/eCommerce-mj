@@ -97,17 +97,17 @@ class Coupon(models.Model):
     
     def calculate_discount(self, cart_total):
         """Calculate discount amount for given cart total."""
-        if cart_total < float(self.min_order_value):
+        if float(cart_total) < float(self.min_order_value):
             return 0
         
         if self.discount_type == 'percentage':
-            discount = (float(self.discount_value) / 100) * cart_total
+            discount = (float(self.discount_value) / 100) * float(cart_total)
             if self.max_discount > 0:
                 discount = min(discount, float(self.max_discount))
         else:
             discount = float(self.discount_value)
         
-        return round(min(discount, cart_total), 2)
+        return round(min(discount, float(cart_total)), 2)
     
     def can_use(self, user_email):
         """Check if user can use this coupon."""

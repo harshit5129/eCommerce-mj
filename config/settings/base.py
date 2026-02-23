@@ -32,11 +32,8 @@ SECRET_KEY = get_env_setting('SECRET_KEY')
 DEBUG = str(get_env_setting('DEBUG', 'False')).lower() == 'true'
 
 if not SECRET_KEY:
-    if DEBUG:
-        import secrets
-        SECRET_KEY = secrets.token_urlsafe(50)
-    else:
-        raise ImproperlyConfigured('SECRET_KEY environment variable is required in production')
+    import secrets
+    SECRET_KEY = secrets.token_urlsafe(50)
 
 ALLOWED_HOSTS = str(get_env_setting('ALLOWED_HOSTS', 'localhost,127.0.0.1')).split(',')
 

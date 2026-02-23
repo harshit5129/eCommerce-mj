@@ -22,7 +22,7 @@ if database_url:
             'PASSWORD': parsed.password,
             'HOST': parsed.hostname,
             'PORT': parsed.port or '5432',
-            'CONN_MAX_AGE': 600,
+            'CONN_MAX_AGE': 0,
             'OPTIONS': {
                 'connect_timeout': 10,
             },
@@ -37,7 +37,7 @@ else:
             'PASSWORD': get_env_setting('DB_PASSWORD', ''),
             'HOST': get_env_setting('DB_HOST', 'localhost'),
             'PORT': get_env_setting('DB_PORT', '5432'),
-            'CONN_MAX_AGE': 600,
+            'CONN_MAX_AGE': 0,
             'OPTIONS': {
                 'connect_timeout': 10,
             },

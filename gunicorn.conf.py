@@ -3,9 +3,8 @@ import os
 
 bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
 workers = int(os.getenv('GUNICORN_WORKERS', multiprocessing.cpu_count() * 2 + 1))
-worker_class = 'gevent'
-worker_connections = 1000
-threads = int(os.getenv('GUNICORN_THREADS', '4'))
+worker_class = 'sync'
+threads = 1
 
 timeout = 120
 graceful_timeout = 30
@@ -14,7 +13,7 @@ keepalive = 5
 max_requests = 1000
 max_requests_jitter = 100
 
-preload_app = True
+preload_app = False
 
 accesslog = '-'
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
@@ -32,18 +31,26 @@ secure_scheme_headers = {
 }
 
 def on_starting(server):
+    from django.db import connections
+    for conn in connections.all():
+        conn.close()
     server.log.info("Starting Gunicorn server...")
 
 def when_ready(server):
-    server.log.info(f"Server is ready. Workers: {workers}, Threads: {threads}")
+    server.log.info(f"Server is ready. Workers: {workers}")
 
 def on_exit(server):
     server.log.info("Server is shutting down...")
 
 def pre_fork(server, worker):
-    pass
+    from django.db import connections
+    for conn in connections.all():
+        conn.close()
 
 def post_fork(server, worker):
+    from django.db import connections
+    for conn in connections.all():
+        conn.close()
     server.log.info(f"Worker spawned (pid: {worker.pid})")
 
 def pre_exec(server):

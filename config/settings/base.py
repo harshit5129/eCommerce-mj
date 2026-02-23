@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'drf_spectacular',
+    'cloudinary',
+    'cloudinary_storage',
     
     # Local apps (using AppConfig paths)
     'core.apps.CoreConfig',
@@ -158,6 +160,20 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Cloudinary Configuration
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': get_db_setting('CLOUDINARY_CLOUD_NAME', ''),
+    'API_KEY': get_db_setting('CLOUDINARY_API_KEY', ''),
+    'API_SECRET': get_db_setting('CLOUDINARY_API_SECRET', ''),
+}
+
+# Use Cloudinary if configured, otherwise local storage
+if CLOUDINARY_STORAGE['CLOUD_NAME'] and CLOUDINARY_STORAGE['API_KEY'] and CLOUDINARY_STORAGE['API_SECRET']:
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    CLOUDINARY_URL = get_db_setting('CLOUDINARY_URL', '')
+else:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

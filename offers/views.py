@@ -168,9 +168,7 @@ class SubmitReviewView(View):
     """Submit a product review with media uploads."""
     
     MAX_IMAGES = 5
-    MAX_VIDEOS = 2
     MAX_IMAGE_SIZE = 5 * 1024 * 1024
-    MAX_VIDEO_SIZE = 50 * 1024 * 1024
     
     def post(self, request):
         if not request.user.is_authenticated:
@@ -207,8 +205,6 @@ class SubmitReviewView(View):
             ).exists()
             
             images = []
-            videos = []
-            
             for i, img in enumerate(request.FILES.getlist('images')[:self.MAX_IMAGES]):
                 if img.size > self.MAX_IMAGE_SIZE:
                     return JsonResponse({'error': f'Image {i+1} exceeds 5MB limit'}, status=400)
@@ -221,18 +217,6 @@ class SubmitReviewView(View):
                 saved_path = default_storage.save(filename, img)
                 images.append(default_storage.url(saved_path))
             
-            for i, vid in enumerate(request.FILES.getlist('videos')[:self.MAX_VIDEOS]):
-                if vid.size > self.MAX_VIDEO_SIZE:
-                    return JsonResponse({'error': f'Video {i+1} exceeds 50MB limit'}, status=400)
-                if not vid.content_type.startswith('video/'):
-                    return JsonResponse({'error': f'File {i+1} is not a valid video'}, status=400)
-                from django.core.files.storage import default_storage
-                import uuid
-                ext = vid.name.split('.')[-1].lower()
-                filename = f'reviews/videos/{uuid.uuid4().hex}.{ext}'
-                saved_path = default_storage.save(filename, vid)
-                videos.append(default_storage.url(saved_path))
-            
             review = ProductReview.objects.create(
                 product_id=product_id,
                 user_email=request.user.email,
@@ -243,8 +227,9 @@ class SubmitReviewView(View):
                 pros=pros,
                 cons=cons,
                 images=images,
-                videos=videos,
-                is_verified_purchase=is_verified
+                videos=[],
+                is_verified_purchase=is_verified,
+                is_approved=True
             )
             
             from users.models import Notification
@@ -253,6 +238,15 @@ class SubmitReviewView(View):
                 Notification.create_review_notification(product.name, request.user.get_full_name() or request.user.username)
             except:
                 pass
+            
+            from offers.models import ReviewSummary
+            try:
+                summary, _ = ReviewSummary.objects.get_or_create(product_id=product_id)
+                summary.update_from_reviews()
+            except:
+                pass
+            
+            cache.delete(f"product_reviews:{product_id}")
             
             logger.info(f"Review submitted by {request.user.email} for product {product_id}")
             

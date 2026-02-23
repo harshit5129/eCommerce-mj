@@ -1,0 +1,282 @@
+{% extends 'admin/base.html' %}
+
+{% block admin_content %}
+<div class="p-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Site Settings</h1>
+            <p class="text-gray-600">Configure your store settings, shipping, tax, and more.</p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Store Information -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 1v1M9 7h1m-1 1v1m6-3h.01M9 11h.01M9 15h.01M15 15h.01"/>
+                    </svg>
+                    Store Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+                        <input type="text" name="store_name" value="{{ settings.store_name }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Store Email</label>
+                        <input type="email" name="store_email" value="{{ settings.store_email }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Store Phone</label>
+                        <input type="text" name="store_phone" value="{{ settings.store_phone }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Order Prefix</label>
+                        <input type="text" name="order_prefix" value="{{ settings.order_prefix }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" maxlength="10">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Store Address</label>
+                    <textarea name="store_address" rows="3" 
+                        class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">{{ settings.store_address }}</textarea>
+                </div>
+            </div>
+
+            <!-- Shipping & Tax Settings -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343-2-3-2-3 .895-3 2 3 2zm0 0c1.657.895 3 2s-1.343 2-3 2-3 .895-3 2 3 .895 3 2 3-2 0-3-.895-3-2-3-2zm0 0c1.657.895 3 2s-1.343 2-3 2-3 .895-3 2 3 .895 3 2 3-2c0-3-.895-3-2-3-2z"/>
+                    </svg>
+                    Shipping & Tax
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Free Shipping Threshold ({{ settings.currency_symbol }})</label>
+                        <input type="number" name="free_shipping_threshold" value="{{ settings.free_shipping_threshold }}" step="0.01"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                        <p class="text-xs text-gray-500 mt-1">Orders above this amount get free shipping</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Shipping Cost ({{ settings.currency_symbol }})</label>
+                        <input type="number" name="shipping_cost" value="{{ settings.shipping_cost }}" step="0.01"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+                        <input type="number" name="tax_rate" value="{{ settings.tax_rate }}" step="0.01" min="0" max="100"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tax Name</label>
+                        <input type="text" name="tax_name" value="{{ settings.tax_name }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Currency Code</label>
+                        <input type="text" name="currency_code" value="{{ settings.currency_code }}" maxlength="3"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Currency Symbol</label>
+                        <input type="text" name="currency_symbol" value="{{ settings.currency_symbol }}" maxlength="5"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Order Amount ({{ settings.currency_symbol }})</label>
+                    <input type="number" name="min_order_amount" value="{{ settings.min_order_amount }}" step="0.01"
+                        class="w-full md:w-1/3 px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+
+            <!-- Inventory Settings -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8 4l-8 4m8-4v10l-8-4m0 0l-8 4m0 0V7"/>
+                    </svg>
+                    Inventory
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Low Stock Threshold</label>
+                        <input type="number" name="low_stock_threshold" value="{{ settings.low_stock_threshold }}" min="0"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                        <p class="text-xs text-gray-500 mt-1">Alert when stock falls below this level</p>
+                    </div>
+                    <div class="flex items-center pt-6">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="allow_out_of_stock_purchase" {% if settings.allow_out_of_stock_purchase %}checked{% endif %}
+                                class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                            <span class="ml-2 text-sm text-gray-700">Allow out-of-stock purchases</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Flags -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Features
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="enable_reviews" {% if settings.enable_reviews %}checked{% endif %}
+                            class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                        <span class="ml-2 text-sm text-gray-700">Enable Reviews</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="enable_wishlist" {% if settings.enable_wishlist %}checked{% endif %}
+                            class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                        <span class="ml-2 text-sm text-gray-700">Enable Wishlist</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="enable_coupons" {% if settings.enable_coupons %}checked{% endif %}
+                            class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                        <span class="ml-2 text-sm text-gray-700">Enable Coupons</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="enable_newsletter" {% if settings.enable_newsletter %}checked{% endif %}
+                            class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                        <span class="ml-2 text-sm text-gray-700">Enable Newsletter</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Email Notifications -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    Email Notifications
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="order_confirmation_email" {% if settings.order_confirmation_email %}checked{% endif %}
+                            class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                        <span class="ml-2 text-sm text-gray-700">Order Confirmation</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="order_shipped_email" {% if settings.order_shipped_email %}checked{% endif %}
+                            class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                        <span class="ml-2 text-sm text-gray-700">Order Shipped</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="order_cancelled_email" {% if settings.order_cancelled_email %}checked{% endif %}
+                            class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500">
+                        <span class="ml-2 text-sm text-gray-700">Order Cancelled</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- SEO Settings -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    SEO Settings
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                        <input type="text" name="meta_title" value="{{ settings.meta_title }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                        <textarea name="meta_description" rows="3" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">{{ settings.meta_description }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Meta Keywords</label>
+                        <input type="text" name="meta_keywords" value="{{ settings.meta_keywords }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Media Links -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                    </svg>
+                    Social Media
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Facebook URL</label>
+                        <input type="url" name="facebook_url" value="{{ settings.facebook_url }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" placeholder="https://facebook.com/yourstore">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Instagram URL</label>
+                        <input type="url" name="instagram_url" value="{{ settings.instagram_url }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" placeholder="https://instagram.com/yourstore">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Twitter URL</label>
+                        <input type="url" name="twitter_url" value="{{ settings.twitter_url }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" placeholder="https://twitter.com/yourstore">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">YouTube URL</label>
+                        <input type="url" name="youtube_url" value="{{ settings.youtube_url }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" placeholder="https://youtube.com/yourstore">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Pinterest URL</label>
+                        <input type="url" name="pinterest_url" value="{{ settings.pinterest_url }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" placeholder="https://pinterest.com/yourstore">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    Analytics & Tracking
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Google Analytics ID</label>
+                        <input type="text" name="google_analytics_id" value="{{ settings.google_analytics_id }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" placeholder="G-XXXXXXXXXX">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Facebook Pixel ID</label>
+                        <input type="text" name="facebook_pixel_id" value="{{ settings.facebook_pixel_id }}" 
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500" placeholder="XXXXXXXXXX">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex justify-end">
+                <button type="submit" 
+                    class="px-6 py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors">
+                    Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -23,6 +23,17 @@ from offers.models import Coupon, CouponUsage
 logger = logging.getLogger(__name__)
 
 
+def get_site_settings():
+    """Get cached site settings."""
+    from core.models import SiteSettings
+    cache_key = 'site_settings'
+    settings_obj = cache.get(cache_key)
+    if settings_obj is None:
+        settings_obj = SiteSettings.get_settings()
+        cache.set(cache_key, settings_obj, 300)
+    return settings_obj
+
+
 def validate_id(id_string):
     """Validate that ID is a valid integer."""
     if not id_string:
@@ -56,6 +67,8 @@ def calculate_order_totals(cart_items, coupon_code=None, user_email=None):
     Calculate order totals server-side with Decimal precision.
     Returns tuple: (subtotal, shipping, tax, discount, total)
     """
+    site_settings = get_site_settings()
+    
     subtotal = Decimal('0')
     for item in cart_items:
         try:
@@ -65,13 +78,14 @@ def calculate_order_totals(cart_items, coupon_code=None, user_email=None):
         except (ValueError, TypeError):
             continue
     
-    # Free shipping over ₹4000
-    shipping = Decimal('0') if subtotal >= Decimal('4000') else Decimal('99')
+    free_shipping_threshold = Decimal(str(site_settings.free_shipping_threshold))
+    shipping_cost = Decimal(str(site_settings.shipping_cost))
+    tax_rate = Decimal(str(site_settings.tax_rate)) / 100
     
-    # Tax (18% GST)
-    tax = (subtotal * Decimal('0.18')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    shipping = Decimal('0') if subtotal >= free_shipping_threshold else shipping_cost
     
-    # Calculate discount
+    tax = (subtotal * tax_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
     discount = Decimal('0')
     if coupon_code and user_email:
         try:
@@ -92,11 +106,17 @@ def calculate_order_totals(cart_items, coupon_code=None, user_email=None):
 def send_order_confirmation_email(order):
     """Send order confirmation email to customer."""
     try:
-        # Use select_related/prefetch_related to avoid N+1
+        site_settings = get_site_settings()
+        
+        if not site_settings.order_confirmation_email:
+            return
+        
         items = order.items.all()
         
+        currency_symbol = site_settings.currency_symbol
+        
         items_list = "\n".join([
-            f"  - {sanitize_email_header(item.product_name)} x {item.quantity} = ₹{item.price * item.quantity:,.2f}"
+            f"  - {sanitize_email_header(item.product_name)} x {item.quantity} = {currency_symbol}{item.price * item.quantity:,.2f}"
             for item in items
         ])
         
@@ -116,12 +136,12 @@ ITEMS ORDERED:
 
 ORDER SUMMARY
 -------------
-Subtotal: ₹{order.subtotal:,.2f}
-Shipping: {'FREE' if order.shipping_cost == 0 else f'₹{order.shipping_cost:,.2f}'}
-Tax (18% GST): ₹{order.tax:,.2f}
-{f'Discount: -₹{order.discount:,.2f}' if order.discount > 0 else ''}
+Subtotal: {currency_symbol}{order.subtotal:,.2f}
+Shipping: {'FREE' if order.shipping_cost == 0 else f'{currency_symbol}{order.shipping_cost:,.2f}'}
+{site_settings.tax_name} ({float(site_settings.tax_rate)}%): {currency_symbol}{order.tax:,.2f}
+{f'Discount: -{currency_symbol}{order.discount:,.2f}' if order.discount > 0 else ''}
 -----------------------------------
-TOTAL: ₹{order.total:,.2f}
+TOTAL: {currency_symbol}{order.total:,.2f}
 
 SHIPPING ADDRESS
 ----------------
@@ -132,16 +152,16 @@ Phone: {sanitize_email_header(order.shipping_address.get('phone', ''))}
 
 PAYMENT METHOD
 --------------
-Online Payment (Razorpay)
+{order.get_payment_method_display()}
 
 Thank you for shopping with us!
 
 Best regards,
-{settings.SITE_NAME} Team
+{site_settings.store_name} Team
 '''
         
         send_mail(
-            subject=f'Order Confirmed - {order.order_number} | {settings.SITE_NAME}',
+            subject=f'Order Confirmed - {order.order_number} | {site_settings.store_name}',
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[order.user_email],
@@ -154,7 +174,13 @@ Best regards,
 def send_order_cancellation_email(order):
     """Send order cancellation email to customer."""
     try:
+        site_settings = get_site_settings()
+        
+        if not site_settings.order_cancelled_email:
+            return
+        
         first_name = sanitize_email_header(order.shipping_address.get('first_name', ''))
+        currency_symbol = site_settings.currency_symbol
         
         message = f'''Dear {first_name or 'Customer'},
 
@@ -164,16 +190,16 @@ ORDER DETAILS
 -------------
 Order Number: {order.order_number}
 Cancelled On: {order.cancelled_at.strftime('%B %d, %Y at %I:%M %p')}
-Total Amount: ₹{order.total:,.2f}
+Total Amount: {currency_symbol}{order.total:,.2f}
 
 If your payment was already processed, a refund will be issued within 5-7 business days.
 
 Best regards,
-{settings.SITE_NAME} Team
+{site_settings.store_name} Team
 '''
         
         send_mail(
-            subject=f'Order Cancelled - {order.order_number} | {settings.SITE_NAME}',
+            subject=f'Order Cancelled - {order.order_number} | {site_settings.store_name}',
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[order.user_email],
@@ -221,17 +247,16 @@ class CheckoutView(View):
             messages.warning(request, 'Your cart is empty.')
             return redirect('cart')
         
-        # Get applied coupon from session
         coupon_data = request.session.get('applied_coupon', {})
         coupon_code = coupon_data.get('code') if coupon_data else None
         
-        # Get user email for coupon validation
         user_email = request.user.email if request.user.is_authenticated else None
         
-        # Calculate totals with coupon
         subtotal, shipping, tax, discount, total = calculate_order_totals(
             cart, coupon_code=coupon_code, user_email=user_email
         )
+        
+        site_settings = get_site_settings()
         
         user = None
         if request.user.is_authenticated:
@@ -246,6 +271,7 @@ class CheckoutView(View):
             'total': float(total),
             'user': user,
             'coupon_code': coupon_code,
+            'site_settings': site_settings,
         }
         return render(request, self.template_name, context)
     
@@ -290,8 +316,10 @@ class CheckoutView(View):
             if errors:
                 return JsonResponse({'error': errors[0]}, status=400)
             
-            # Generate order number
-            order_number = f"ORD-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+            # Generate order number using site settings
+            site_settings = get_site_settings()
+            order_prefix = site_settings.order_prefix
+            order_number = f"{order_prefix}-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
             
             with transaction.atomic():
                 # Create order
@@ -328,11 +356,15 @@ class CheckoutView(View):
                     if not product:
                         continue
                     
-                    # Deduct inventory atomically
+                    # Deduct inventory atomically with race condition protection
                     if product.track_inventory:
-                        Product.objects.filter(id=product_id).update(
-                            stock_quantity=F('stock_quantity') - quantity
-                        )
+                        updated = Product.objects.filter(
+                            id=product_id,
+                            stock_quantity__gte=quantity
+                        ).update(stock_quantity=F('stock_quantity') - quantity)
+                        
+                        if not updated:
+                            raise ValueError(f'Insufficient stock for {product.name}. Please reduce quantity.')
                     
                     OrderItem.objects.create(
                         order=order,

@@ -4,13 +4,25 @@ from django.views import View
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
-from decimal import Decimal
+from django.core.cache import cache
+from decimal import Decimal, ROUND_HALF_UP
 import json
 import logging
 
 from products.models import Product
 
 logger = logging.getLogger(__name__)
+
+
+def get_site_settings():
+    """Get cached site settings."""
+    from core.models import SiteSettings
+    cache_key = 'site_settings'
+    settings = cache.get(cache_key)
+    if settings is None:
+        settings = SiteSettings.get_settings()
+        cache.set(cache_key, settings, 300)
+    return settings
 
 
 def validate_quantity(quantity):
@@ -32,20 +44,18 @@ class CartView(View):
     def get(self, request):
         cart_items = request.session.get('cart', [])
         
-        # Calculate totals
+        site_settings = get_site_settings()
+        
         for item in cart_items:
             item['total'] = item.get('product_price', 0) * item.get('quantity', 1)
         
         cart_total = sum(item.get('total', 0) for item in cart_items)
         
-        # Get applied coupon from session
         coupon_data = request.session.get('applied_coupon', {})
         coupon_code = coupon_data.get('code') if coupon_data else None
         
-        # Get user email for coupon validation
         user_email = request.user.email if request.user.is_authenticated else None
         
-        # Calculate discount only if user is authenticated and coupon exists
         discount = 0
         valid_coupon = None
         if coupon_code and user_email:
@@ -58,33 +68,36 @@ class CartView(View):
                     discount = min(discount, cart_total)
                     valid_coupon = coupon
                 else:
-                    # Coupon is not valid for this user, clear it from session
                     del request.session['applied_coupon']
                     request.session.modified = True
                     coupon_code = None
             except Coupon.DoesNotExist:
-                # Coupon doesn't exist, clear it from session
                 del request.session['applied_coupon']
                 request.session.modified = True
                 coupon_code = None
         elif coupon_code and not user_email:
-            # User not logged in but has coupon in session - clear it
             del request.session['applied_coupon']
             request.session.modified = True
             coupon_code = None
         
-        shipping_cost = 0 if cart_total >= 4000 else 99
-        tax = cart_total * 0.18
-        order_total = cart_total + shipping_cost + tax - discount
+        free_shipping_threshold = float(site_settings.free_shipping_threshold)
+        shipping_cost = float(site_settings.shipping_cost)
+        shipping = 0 if cart_total >= free_shipping_threshold else shipping_cost
+        
+        tax_rate = float(site_settings.tax_rate) / 100
+        tax = cart_total * tax_rate
+        
+        order_total = cart_total + shipping + tax - discount
         
         context = {
             'cart_items': cart_items,
             'cart_total': cart_total,
-            'shipping_cost': shipping_cost,
+            'shipping_cost': shipping,
             'tax': tax,
             'discount': discount,
             'order_total': order_total,
             'coupon_code': coupon_code if valid_coupon else None,
+            'site_settings': site_settings,
         }
         return render(request, self.template_name, context)
 

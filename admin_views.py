@@ -10,10 +10,10 @@ from django.conf import settings
 from django.db import models
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_protect
 import json
 import logging
 import os
-import uuid
 import re
 
 from users.models import User
@@ -1678,3 +1678,97 @@ class AdminSocialLinkDeleteView(View):
             return JsonResponse({'success': True})
         except SocialLink.DoesNotExist:
             return JsonResponse({'error': 'Not found'}, status=404)
+
+
+class AdminSiteSettingsView(View):
+    """Manage site-wide settings through admin panel."""
+    
+    template_name = 'admin/settings/form.html'
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        from core.models import SiteSettings
+        settings_obj = SiteSettings.get_settings()
+        return render(request, self.template_name, {'settings': settings_obj})
+    
+    def post(self, request):
+        from core.models import SiteSettings
+        
+        try:
+            settings_obj = SiteSettings.get_settings()
+            
+            # Store Settings
+            settings_obj.store_name = request.POST.get('store_name', settings_obj.store_name)[:100]
+            settings_obj.store_email = request.POST.get('store_email', settings_obj.store_email)
+            settings_obj.store_phone = request.POST.get('store_phone', '')[:20]
+            settings_obj.store_address = request.POST.get('store_address', '')
+            
+            # Shipping Settings
+            settings_obj.free_shipping_threshold = max(0, float(request.POST.get('free_shipping_threshold', 0)))
+            settings_obj.shipping_cost = max(0, float(request.POST.get('shipping_cost', 0)))
+            
+            # Tax Settings
+            settings_obj.tax_rate = max(0, min(100, float(request.POST.get('tax_rate', 0))))
+            settings_obj.tax_name = request.POST.get('tax_name', 'GST')[:50]
+            
+            # Currency Settings
+            settings_obj.currency_code = request.POST.get('currency_code', 'INR')[:3]
+            settings_obj.currency_symbol = request.POST.get('currency_symbol', '₹')[:5]
+            
+            # Order Settings
+            settings_obj.order_prefix = request.POST.get('order_prefix', 'ORD')[:10]
+            settings_obj.min_order_amount = max(0, float(request.POST.get('min_order_amount', 0)))
+            
+            # Inventory Settings
+            settings_obj.low_stock_threshold = max(0, int(request.POST.get('low_stock_threshold', 10)))
+            settings_obj.allow_out_of_stock_purchase = request.POST.get('allow_out_of_stock_purchase') == 'on'
+            
+            # SEO Settings
+            settings_obj.meta_title = request.POST.get('meta_title', '')[:200]
+            settings_obj.meta_description = request.POST.get('meta_description', '')[:500]
+            settings_obj.meta_keywords = request.POST.get('meta_keywords', '')[:500]
+            
+            # Social Media Links
+            settings_obj.facebook_url = request.POST.get('facebook_url', '')
+            settings_obj.instagram_url = request.POST.get('instagram_url', '')
+            settings_obj.twitter_url = request.POST.get('twitter_url', '')
+            settings_obj.youtube_url = request.POST.get('youtube_url', '')
+            settings_obj.pinterest_url = request.POST.get('pinterest_url', '')
+            
+            # Analytics Settings
+            settings_obj.google_analytics_id = request.POST.get('google_analytics_id', '')[:50]
+            settings_obj.facebook_pixel_id = request.POST.get('facebook_pixel_id', '')[:50]
+            
+            # Feature Flags
+            settings_obj.enable_reviews = request.POST.get('enable_reviews') == 'on'
+            settings_obj.enable_wishlist = request.POST.get('enable_wishlist') == 'on'
+            settings_obj.enable_coupons = request.POST.get('enable_coupons') == 'on'
+            settings_obj.enable_newsletter = request.POST.get('enable_newsletter') == 'on'
+            
+            # Email Settings
+            settings_obj.order_confirmation_email = request.POST.get('order_confirmation_email') == 'on'
+            settings_obj.order_shipped_email = request.POST.get('order_shipped_email') == 'on'
+            settings_obj.order_cancelled_email = request.POST.get('order_cancelled_email') == 'on'
+            
+            settings_obj.save()
+            
+            cache.delete('site_settings')
+            cache.delete('site_settings_common')
+            
+            log_admin_action(request, 'UPDATE', 'SiteSettings', changes={
+                'store_name': settings_obj.store_name,
+                'tax_rate': float(settings_obj.tax_rate),
+                'free_shipping_threshold': float(settings_obj.free_shipping_threshold),
+            })
+            
+            messages.success(request, 'Settings updated successfully!')
+            return redirect('admin_settings')
+            
+        except Exception as e:
+            logger.error(f"Site settings update failed: {e}", exc_info=True)
+            messages.error(request, f'Error updating settings: {str(e)}')
+            return redirect('admin_settings')

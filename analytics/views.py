@@ -3,19 +3,27 @@ import logging
 from django.shortcuts import render
 from django.views import View
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 from django.core.cache import cache
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 
 logger = logging.getLogger(__name__)
 
 
 def is_staff_user(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+class GetAnalyticsCSRFView(View):
+    """Get CSRF token for analytics tracking."""
+    
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request):
+        return JsonResponse({'success': True})
 
 
 class AnalyticsEvent:

@@ -1,5 +1,31 @@
 from django import forms
 from users.models import User
+import re
+
+
+def validate_password_strength(password):
+    """
+    Validate password strength.
+    Returns (is_valid, errors) tuple.
+    """
+    errors = []
+    
+    if len(password) < 8:
+        errors.append('Password must be at least 8 characters long')
+    
+    if not re.search(r'[A-Z]', password):
+        errors.append('Password must contain at least one uppercase letter')
+    
+    if not re.search(r'[a-z]', password):
+        errors.append('Password must contain at least one lowercase letter')
+    
+    if not re.search(r'\d', password):
+        errors.append('Password must contain at least one digit')
+    
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        errors.append('Password must contain at least one special character (!@#$%^&* etc.)')
+    
+    return len(errors) == 0, errors
 
 
 class UserRegistrationForm(forms.Form):
@@ -50,8 +76,10 @@ class UserRegistrationForm(forms.Form):
         if password != confirm_password:
             raise forms.ValidationError("Passwords don't match")
         
-        if password and len(password) < 8:
-            raise forms.ValidationError("Password must be at least 8 characters")
+        if password:
+            is_valid, errors = validate_password_strength(password)
+            if not is_valid:
+                raise forms.ValidationError(errors[0])
         
         return cleaned_data
     

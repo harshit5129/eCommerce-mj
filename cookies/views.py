@@ -2,8 +2,21 @@ from django.shortcuts import render, redirect
 from django.views import View
 from django.http import JsonResponse
 from django.contrib import messages
-from datetime import datetime
+from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class GetCSRFTokenView(View):
+    """Get CSRF token for frontend JavaScript requests."""
+    
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request):
+        return JsonResponse({'success': True})
 
 
 class CookieConsentView(View):
@@ -18,7 +31,7 @@ class CookieConsentView(View):
                 'necessary': True,
                 'analytics': consent.get('analytics', False),
                 'marketing': consent.get('marketing', False),
-                'timestamp': str(datetime.now())
+                'timestamp': timezone.now().isoformat()
             }
             request.session.modified = True
             
@@ -26,11 +39,17 @@ class CookieConsentView(View):
                 'success': True,
                 'message': 'Cookie preferences saved'
             })
-        except Exception as e:
+        except json.JSONDecodeError:
             return JsonResponse({
                 'success': False,
-                'error': str(e)
+                'error': 'Invalid JSON data'
             }, status=400)
+        except Exception as e:
+            logger.error(f"Cookie consent error: {e}", exc_info=True)
+            return JsonResponse({
+                'success': False,
+                'error': 'An error occurred'
+            }, status=500)
 
 
 class CookiePreferencesView(View):
@@ -54,7 +73,7 @@ class CookiePreferencesView(View):
             'necessary': True,
             'analytics': request.POST.get('analytics') == 'on',
             'marketing': request.POST.get('marketing') == 'on',
-            'timestamp': str(datetime.now())
+            'timestamp': timezone.now().isoformat()
         }
         
         request.session['cookie_consent'] = preferences

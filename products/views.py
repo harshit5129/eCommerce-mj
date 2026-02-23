@@ -7,21 +7,12 @@ from django.db.models import Q
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 from products.models import Product, Category, Wishlist
+from core.utils import validate_id, get_pagination_bounds
 import math
 import json
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def validate_id(id_string):
-    """Validate that ID is a valid integer."""
-    if not id_string:
-        return None
-    try:
-        return int(id_string)
-    except (ValueError, TypeError):
-        return None
 
 
 def get_categories_cached():
@@ -34,6 +25,19 @@ def get_categories_cached():
     categories = list(Category.objects.filter(is_active=True).values('slug', 'name'))
     cache.set(cache_key, categories, 3600)
     return categories
+
+
+def get_site_settings_cached():
+    """Get site settings with caching for common values."""
+    cache_key = "site_settings_common"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    from core.models import SiteSettings
+    settings_obj = SiteSettings.get_settings()
+    cache.set(cache_key, settings_obj, 300)
+    return settings_obj
 
 
 class HomeView(View):
@@ -68,6 +72,7 @@ class HomeView(View):
         )
         
         categories = get_categories_cached()
+        site_settings = get_site_settings_cached()
         
         context = {
             'hero_images': hero_images,
@@ -75,6 +80,7 @@ class HomeView(View):
             'featured_products': featured_products,
             'latest_products': latest_products,
             'categories': categories,
+            'site_settings': site_settings,
         }
         
         cache.set(cache_key, context, 300)

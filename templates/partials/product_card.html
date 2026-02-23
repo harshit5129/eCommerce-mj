@@ -11,9 +11,9 @@
                     {% endfor %}
                 </div>
                 {% if product.images.all|length > 1 %}
-                <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
                     {% for image in product.images.all %}
-                        <span class="carousel-dot w-1.5 h-1.5 rounded-full bg-white/70 transition-all duration-300 {% if forloop.first %}bg-secondary-400 w-3{% endif %}" data-index="{{ forloop.counter0 }}"></span>
+                        <button class="carousel-dot w-2 h-2 rounded-full bg-white/70 transition-all duration-300 hover:bg-secondary-400 {% if forloop.first %}bg-secondary-400 w-4{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="View image {{ forloop.counter0 }}"></button>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -27,30 +27,38 @@
                 </div>
             {% endif %}
             
-            {% if product.discount_percentage > 0 %}
-                <span class="absolute top-3 right-3 bg-gradient-to-r from-primary-600 to-secondary-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg animate-pulse-subtle z-10">
-                    -{{ product.discount_percentage }}%
-                </span>
-            {% endif %}
+            <!-- Badges -->
+            <div class="absolute top-3 left-3 right-3 flex justify-between items-start z-10">
+                <div class="flex flex-col gap-1.5">
+                    {% if product.discount_percentage > 0 %}
+                        <span class="bg-gradient-to-r from-primary-600 to-secondary-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                            -{{ product.discount_percentage }}%
+                        </span>
+                    {% endif %}
+                    {% if product.is_featured %}
+                        <span class="bg-gradient-to-r from-secondary-500 to-secondary-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                            Featured
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button onclick="toggleWishlist(event, '{{ product.id }}')" 
+                            class="p-2 bg-accent-900/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-primary-700/50 hover:scale-110 transition-all wishlist-btn"
+                            data-product-id="{{ product.id }}"
+                            aria-label="Add to wishlist">
+                        <svg class="w-5 h-5 text-gray-300 hover:text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
             
-            {% if product.is_featured %}
-                <span class="absolute top-3 left-3 bg-gradient-to-r from-secondary-500 to-secondary-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg z-10 animate-shimmer">
-                    Featured
-                </span>
-            {% endif %}
-            
-            <div class="absolute inset-0 bg-gradient-to-t from-accent-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+            <!-- Overlay on hover -->
+            <div class="absolute inset-0 bg-gradient-to-t from-accent-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>
     </a>
-    
-    <button onclick="toggleWishlist('{{ product.id }}')" 
-            class="absolute top-3 right-3 p-2.5 bg-accent-900/80 backdrop-blur rounded-full shadow-lg hover:bg-primary-700/50 hover:text-secondary-400 hover:scale-110 active:scale-95 transition-all z-10 wishlist-btn {% if product.discount_percentage > 0 %}mt-10{% endif %} touch-manipulation"
-            data-product-id="{{ product.id }}"
-            aria-label="Add to wishlist">
-        <svg class="w-5 h-5 transition-transform hover:scale-110 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-        </svg>
-    </button>
     
     <div class="p-5">
         {% if product.category %}
@@ -58,43 +66,63 @@
         {% endif %}
         
         <a href="{% url 'product_detail' product.slug %}" class="block">
-            <h3 class="text-lg font-semibold text-gray-100 group-hover:text-secondary-300 transition-colors line-clamp-2 mb-2">
+            <h3 class="text-lg font-semibold text-gray-100 group-hover:text-secondary-300 transition-colors line-clamp-2 mb-2 min-h-[3rem]">
                 {{ product.name }}
             </h3>
         </a>
         
+        <!-- Rating -->
+        {% if product.average_rating %}
+        <div class="flex items-center gap-2 mb-3">
+            <div class="flex items-center">
+                {% for i in "12345" %}
+                    <svg class="w-4 h-4 {% if forloop.counter <= product.average_rating|floatformat:"0" %}text-yellow-400{% else %}text-gray-600{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                {% endfor %}
+            </div>
+            <span class="text-sm text-gray-400">({{ product.review_count|default:0 }})</span>
+        </div>
+        {% endif %}
+        
+        <!-- Price -->
         <div class="flex items-baseline gap-2 mb-3">
             <span class="text-2xl font-bold text-white">{{ product.price|rupee }}</span>
             {% if product.compare_price %}
                 <span class="text-sm text-gray-500 line-through">{{ product.compare_price|rupee }}</span>
+                {% if product.discount_percentage > 0 %}
+                    <span class="text-xs text-green-400 font-medium">Save {{ product.discount_percentage }}%</span>
+                {% endif %}
             {% endif %}
         </div>
         
+        <!-- Stock Status -->
         {% if product.track_inventory %}
             <div class="mb-4">
                 {% if product.stock_quantity > 0 %}
                     {% if product.stock_quantity <= 5 %}
-                        <p class="text-sm text-secondary-400 font-medium flex items-center gap-1 animate-pulse-subtle">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                        <p class="text-sm text-secondary-400 font-medium flex items-center gap-1.5">
+                            <span class="w-2 h-2 bg-secondary-400 rounded-full animate-pulse"></span>
                             Only {{ product.stock_quantity }} left!
                         </p>
                     {% else %}
-                        <p class="text-sm text-green-400 font-medium flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <p class="text-sm text-green-400 font-medium flex items-center gap-1.5">
+                            <span class="w-2 h-2 bg-green-400 rounded-full"></span>
                             In Stock
                         </p>
                     {% endif %}
                 {% else %}
-                    <p class="text-sm text-primary-400 font-medium flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                    <p class="text-sm text-gray-500 font-medium flex items-center gap-1.5">
+                        <span class="w-2 h-2 bg-gray-500 rounded-full"></span>
                         Out of Stock
                     </p>
                 {% endif %}
             </div>
         {% endif %}
         
-        <button onclick="addToCart('{{ product.id }}', 1)" 
-                class="w-full py-3 sm:py-2.5 rounded-xl font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation
+        <!-- Add to Cart Button -->
+        <button onclick="addToCart(event, '{{ product.id }}', 1)" 
+                class="w-full py-3 sm:py-2.5 rounded-xl font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2
                 {% if product.in_stock %}
                     btn-glow text-white
                 {% else %}
@@ -102,12 +130,15 @@
                 {% endif %}"
                 {% if not product.in_stock %}disabled aria-disabled="true"{% endif %}>
             {% if product.in_stock %}
-                <span class="flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    Add to Cart
-                </span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span>Add to Cart</span>
             {% else %}
-                Out of Stock
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                </svg>
+                <span>Out of Stock</span>
             {% endif %}
         </button>
     </div>
@@ -142,11 +173,11 @@
             
             dots.forEach((dot, i) => {
                 if (i === index) {
-                    dot.classList.add('bg-secondary-400', 'w-3');
-                    dot.classList.remove('bg-white/70', 'w-1.5');
+                    dot.classList.add('bg-secondary-400', 'w-4');
+                    dot.classList.remove('bg-white/70', 'w-2');
                 } else {
-                    dot.classList.remove('bg-secondary-400', 'w-3');
-                    dot.classList.add('bg-white/70', 'w-1.5');
+                    dot.classList.remove('bg-secondary-400', 'w-4');
+                    dot.classList.add('bg-white/70', 'w-2');
                 }
             });
         }
@@ -157,7 +188,7 @@
         }
         
         function startCarousel() {
-            interval = setInterval(nextImage, 2500);
+            interval = setInterval(nextImage, 3000);
         }
         
         function stopCarousel() {
@@ -181,40 +212,79 @@
             });
         });
     });
+    
+    // Wishlist toggle
+    window.toggleWishlist = function(event, productId) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const btn = document.querySelector(`.wishlist-btn[data-product-id="${productId}"]`);
+        const icon = btn.querySelector('svg');
+        
+        // Toggle wishlist via AJAX
+        fetch(`/products/wishlist/toggle/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.added) {
+                    icon.classList.remove('text-gray-300');
+                    icon.classList.add('text-secondary-400', 'fill-current');
+                    Toast.show('Added to wishlist', 'success');
+                } else {
+                    icon.classList.add('text-gray-300');
+                    icon.classList.remove('text-secondary-400', 'fill-current');
+                    Toast.show('Removed from wishlist', 'info');
+                }
+                // Update wishlist count in header
+                if (data.wishlist_count !== undefined) {
+                    const countBadge = document.querySelector('.wishlist-count');
+                    if (countBadge) {
+                        countBadge.textContent = data.wishlist_count;
+                        if (data.wishlist_count > 0) {
+                            countBadge.classList.remove('hidden');
+                        } else {
+                            countBadge.classList.add('hidden');
+                        }
+                    }
+                }
+            } else {
+                Toast.show(data.error || 'Please login to add to wishlist', 'error');
+            }
+        })
+        .catch(() => {
+            Toast.show('Something went wrong', 'error');
+        });
+    };
+    
+    // Add to cart with event
+    window.addToCart = function(event, productId, quantity) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        Cart.add(productId, quantity);
+    };
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
 })();
 </script>
-
-<style>
-@keyframes pulse-subtle {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
-}
-
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-.animate-pulse-subtle {
-    animation: pulse-subtle 2s ease-in-out infinite;
-}
-
-.animate-shimmer {
-    background-size: 200% 100%;
-    animation: shimmer 2s linear infinite;
-}
-
-.product-carousel-img {
-    backface-visibility: hidden;
-    transform: translateZ(0);
-}
-
-.carousel-dot {
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.carousel-dot:hover {
-    transform: scale(1.2);
-}
-</style>

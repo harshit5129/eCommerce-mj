@@ -11,6 +11,7 @@ from django.utils.crypto import get_random_string
 from django.views.decorators.csrf import csrf_protect
 from django.http import JsonResponse
 from django.utils import timezone
+from django.core.cache import cache
 import jwt
 import os
 import logging
@@ -34,19 +35,23 @@ def is_safe_url(url, allowed_hosts=None):
 
 def generate_token(user):
     """Generate JWT token for password reset."""
+    import time
     payload = {
         'user_id': str(user.id),
         'email': user.email,
-        'exp': timezone.now() + timedelta(hours=1),
-        'iat': timezone.now()
+        'exp': int(time.time()) + 3600,
+        'iat': int(time.time())
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 class PasswordResetView(View):
-    """Password reset request view."""
+    """Password reset request view with rate limiting."""
     
     template_name = 'users/password_reset.html'
+    
+    RATE_LIMIT_ATTEMPTS = 3
+    RATE_LIMIT_PERIOD = 300
     
     def get(self, request):
         return render(request, self.template_name)
@@ -57,6 +62,16 @@ class PasswordResetView(View):
         if not email:
             messages.error(request, 'Please enter your email address.')
             return render(request, self.template_name)
+        
+        client_ip = self._get_client_ip(request)
+        rate_limit_key = f"password_reset:{client_ip}"
+        
+        attempts = cache.get(rate_limit_key, 0)
+        if attempts >= self.RATE_LIMIT_ATTEMPTS:
+            messages.error(request, f'Too many password reset attempts. Please try again in {self.RATE_LIMIT_PERIOD // 60} minutes.')
+            return render(request, self.template_name)
+        
+        cache.set(rate_limit_key, attempts + 1, self.RATE_LIMIT_PERIOD)
         
         try:
             user = User.objects.filter(email=email).first()
@@ -93,6 +108,12 @@ Thanks,
             logger.error(f"Password reset error: {e}", exc_info=True)
             messages.error(request, 'An error occurred. Please try again.')
             return render(request, self.template_name)
+    
+    def _get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '127.0.0.1')
 
 
 class PasswordResetDoneView(View):
@@ -143,12 +164,14 @@ class PasswordResetConfirmView(View):
             password = request.POST.get('password', '').strip()
             password_confirm = request.POST.get('password_confirm', '').strip()
             
-            if not password or len(password) < 8:
-                messages.error(request, 'Password must be at least 8 characters.')
-                return render(request, self.template_name, {'token': token, 'valid': True})
-            
             if password != password_confirm:
                 messages.error(request, 'Passwords do not match.')
+                return render(request, self.template_name, {'token': token, 'valid': True})
+            
+            from users.forms import validate_password_strength
+            is_valid, errors = validate_password_strength(password)
+            if not is_valid:
+                messages.error(request, errors[0])
                 return render(request, self.template_name, {'token': token, 'valid': True})
             
             user.set_password(password)

@@ -11,12 +11,15 @@ from admin_views import (
     AdminNotificationListView, AdminNotificationMarkReadView, AdminNotificationMarkAllReadView,
     AdminSetupView, AdminSetupTestView, AdminSetupExportView,
     AdminHeroImageView, AdminHeroImageCreateView, AdminHeroImageEditView, AdminHeroImageDeleteView,
-    AdminSocialLinksView, AdminSocialLinkDeleteView
+    AdminSocialLinksView, AdminSocialLinkDeleteView,
+    AdminSiteSettingsView,
 )
 from analytics.views import AnalyticsDashboardView
 
 urlpatterns = [
     path('', AdminDashboardView.as_view(), name='admin_dashboard'),
+    
+    path('settings/', AdminSiteSettingsView.as_view(), name='admin_settings'),
     
     path('users/', AdminUserListView.as_view(), name='admin_users'),
     path('users/create/', AdminUserCreateView.as_view(), name='admin_user_create'),

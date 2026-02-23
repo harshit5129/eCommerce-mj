@@ -166,9 +166,25 @@ class SecurityHeadersMiddleware:
         response['X-Content-Type-Options'] = 'nosniff'
         response['X-Frame-Options'] = 'DENY'
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        
+        # Content Security Policy
+        csp_directives = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://code.jquery.com https://checkout.razorpay.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+            "img-src 'self' data: https: blob:",
+            "connect-src 'self' https://api.razorpay.com https://lumberjack-cdn.razorpay.com",
+            "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+        ]
+        response['Content-Security-Policy'] = '; '.join(csp_directives)
         
         if request.is_secure():
-            response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+            response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
         
         return response
 

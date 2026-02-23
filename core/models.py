@@ -135,5 +135,105 @@ class SocialLink(models.Model):
         super().save(*args, **kwargs)
 
 
+class SiteSettings(models.Model):
+    """Site-wide configurable settings managed through admin panel."""
+    
+    # Store Settings
+    store_name = models.CharField(max_length=100, default='E-Commerce Store')
+    store_email = models.EmailField(default='contact@store.com')
+    store_phone = models.CharField(max_length=20, blank=True)
+    store_address = models.TextField(blank=True)
+    
+    # Shipping Settings
+    free_shipping_threshold = models.DecimalField(
+        max_digits=10, decimal_places=2, default=4000,
+        help_text="Order amount above which shipping is free"
+    )
+    shipping_cost = models.DecimalField(
+        max_digits=10, decimal_places=2, default=99,
+        help_text="Default shipping cost"
+    )
+    
+    # Tax Settings
+    tax_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=18,
+        help_text="Tax rate percentage (e.g., 18 for 18% GST)"
+    )
+    tax_name = models.CharField(max_length=50, default='GST')
+    
+    # Currency Settings
+    currency_code = models.CharField(max_length=3, default='INR')
+    currency_symbol = models.CharField(max_length=5, default='₹')
+    
+    # Order Settings
+    order_prefix = models.CharField(max_length=10, default='ORD')
+    min_order_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Minimum order amount allowed"
+    )
+    
+    # Inventory Settings
+    low_stock_threshold = models.PositiveIntegerField(
+        default=10,
+        help_text="Alert when stock falls below this level"
+    )
+    allow_out_of_stock_purchase = models.BooleanField(
+        default=False,
+        help_text="Allow purchasing items that are out of stock"
+    )
+    
+    # SEO Settings
+    meta_title = models.CharField(max_length=200, blank=True)
+    meta_description = models.TextField(max_length=500, blank=True)
+    meta_keywords = models.CharField(max_length=500, blank=True)
+    
+    # Social Media Links
+    facebook_url = models.URLField(blank=True)
+    instagram_url = models.URLField(blank=True)
+    twitter_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True)
+    pinterest_url = models.URLField(blank=True)
+    
+    # Analytics Settings
+    google_analytics_id = models.CharField(max_length=50, blank=True)
+    facebook_pixel_id = models.CharField(max_length=50, blank=True)
+    
+    # Feature Flags
+    enable_reviews = models.BooleanField(default=True)
+    enable_wishlist = models.BooleanField(default=True)
+    enable_coupons = models.BooleanField(default=True)
+    enable_newsletter = models.BooleanField(default=True)
+    
+    # Email Settings
+    order_confirmation_email = models.BooleanField(default=True)
+    order_shipped_email = models.BooleanField(default=True)
+    order_cancelled_email = models.BooleanField(default=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Site Settings'
+        verbose_name_plural = 'Site Settings'
+    
+    def __str__(self):
+        return self.store_name
+    
+    @classmethod
+    def get_settings(cls):
+        """Get or create site settings singleton."""
+        settings, _ = cls.objects.get_or_create(pk=1)
+        return settings
+    
+    def save(self, *args, **kwargs):
+        # Ensure only one instance exists
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        pass  # Prevent deletion of settings
+
+
 def get_config(key, default=None):
     return SiteConfiguration.get(key, default)

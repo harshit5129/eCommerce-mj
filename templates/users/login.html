@@ -5,46 +5,87 @@
 {% block content %}
 <div class="min-h-[85vh] flex items-center justify-center py-12 px-4">
     <div class="w-full max-w-md">
+        <!-- Logo & Title -->
         <div class="text-center mb-8">
-            <a href="{% url 'home' %}" class="text-3xl font-bold gradient-text">E-Shop</a>
-            <p class="text-gray-400 mt-2">Welcome back! Please sign in to your account.</p>
+            <a href="{% url 'home' %}" class="inline-flex items-center gap-2">
+                <div class="w-12 h-12 bg-gradient-to-br from-secondary-500 to-primary-600 rounded-xl flex items-center justify-center">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <span class="text-3xl font-bold gradient-text">E-Shop</span>
+            </a>
+            <p class="text-gray-400 mt-4">Welcome back! Please sign in to continue.</p>
         </div>
         
-        <div class="bg-dark-800 rounded-2xl shadow-xl p-8 border border-dark-700">
+        <!-- Login Form -->
+        <div class="bg-accent-800/50 rounded-2xl shadow-xl p-8 border border-accent-700/50">
             <form method="post" class="space-y-5">
                 {% csrf_token %}
                 
+                <!-- Non-field errors -->
+                {% if form.non_field_errors %}
+                    <div class="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+                        {% for error in form.non_field_errors %}
+                            <p class="text-red-400 text-sm flex items-center gap-2">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                {{ error }}
+                            </p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <!-- Email Field -->
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
                     <div class="relative">
-                        <svg class="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-5 h-5 text-gray-500 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
                         </svg>
-                        {{ form.email }}
+                        <input type="email" name="login" 
+                               class="w-full pl-12 pr-4 py-3.5 bg-accent-700/50 border border-accent-600/50 text-gray-200 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-transparent transition-all placeholder-gray-500"
+                               placeholder="you@example.com" required>
                     </div>
-                    {% if form.email.errors %}
-                        <p class="text-red-400 text-sm mt-1">{{ form.email.errors.0 }}</p>
+                    {% if form.login.errors %}
+                        <p class="text-red-400 text-sm mt-1">{{ form.login.errors.0 }}</p>
                     {% endif %}
                 </div>
                 
+                <!-- Password Field -->
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
                     <div class="relative">
-                        <svg class="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-5 h-5 text-gray-500 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                         </svg>
-                        {{ form.password }}
+                        <input type="password" name="password" 
+                               class="w-full pl-12 pr-12 py-3.5 bg-accent-700/50 border border-accent-600/50 text-gray-200 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-transparent transition-all placeholder-gray-500"
+                               placeholder="••••••••" required>
+                        <button type="button" onclick="togglePassword(this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                            <svg class="w-5 h-5 eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
                     </div>
                     {% if form.password.errors %}
                         <p class="text-red-400 text-sm mt-1">{{ form.password.errors.0 }}</p>
                     {% endif %}
                 </div>
                 
-                <div class="text-right">
-                    <a href="{% url 'password_reset' %}" class="text-sm text-primary-400 hover:text-primary-300 font-medium">Forgot Password?</a>
+                <!-- Remember Me & Forgot Password -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="remember" class="w-4 h-4 rounded border-gray-600 text-secondary-500 focus:ring-secondary-500 focus:ring-offset-0 bg-accent-700/50">
+                        <span class="text-sm text-gray-400">Remember me</span>
+                    </label>
+                    <a href="{% url 'password_reset' %}" class="text-sm text-secondary-400 hover:text-secondary-300 font-medium">Forgot Password?</a>
                 </div>
                 
-                <button type="submit" class="w-full btn-gradient text-white py-3 rounded-xl font-medium shadow-lg shadow-primary-500/30 flex items-center justify-center gap-2">
+                <!-- Submit Button -->
+                <button type="submit" class="w-full btn-glow text-white py-3.5 rounded-xl font-medium flex items-center justify-center gap-2">
                     <span>Sign In</span>
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
@@ -52,41 +93,64 @@
                 </button>
             </form>
             
+            <!-- Social Login -->
             {% load socialaccount %}
             <div class="mt-6">
                 <div class="relative">
                     <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-dark-600"></div>
+                        <div class="w-full border-t border-accent-700/50"></div>
                     </div>
                     <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-dark-800 text-gray-400">Or continue with</span>
+                        <span class="px-4 bg-accent-800/50 text-gray-400">Or continue with</span>
                     </div>
                 </div>
                 
-                <div class="mt-6">
-                    <a href="{% provider_login_url 'google' %}" class="w-full flex items-center justify-center gap-3 px-4 py-3 border border-dark-600 rounded-xl shadow-sm bg-dark-700 text-white hover:bg-dark-600 transition-colors">
+                <div class="mt-6 space-y-3">
+                    <a href="{% provider_login_url 'google' %}" class="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-accent-600/50 rounded-xl bg-accent-700/30 text-gray-200 hover:bg-accent-700/50 hover:border-accent-500/50 transition-all">
                         <svg class="w-5 h-5" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                         </svg>
-                        <span class="font-medium">Sign in with Google</span>
+                        <span class="font-medium">Continue with Google</span>
                     </a>
                 </div>
             </div>
             
-            <div class="mt-6 text-center">
+            <!-- Sign Up Link -->
+            <div class="mt-8 pt-6 border-t border-accent-700/30 text-center">
                 <p class="text-gray-400">
-                    Don't have an account? 
-                    <a href="{% url 'register' %}" class="text-primary-400 hover:text-primary-300 font-medium">Create one</a>
+                    Don't have an account?
+                    <a href="{% url 'register' %}" class="text-secondary-400 hover:text-secondary-300 font-medium ml-1">Create one</a>
                 </p>
             </div>
         </div>
         
-        <div class="mt-8 text-center text-sm text-gray-500">
-            <p>Demo credentials: demo@example.com / demo123</p>
+        <!-- Back to Home -->
+        <div class="mt-6 text-center">
+            <a href="{% url 'home' %}" class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Home
+            </a>
         </div>
     </div>
 </div>
+
+<script>
+function togglePassword(btn) {
+    const input = btn.parentElement.querySelector('input');
+    const eyeIcon = btn.querySelector('.eye-icon');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        eyeIcon.parentElement.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>';
+    } else {
+        input.type = 'password';
+        eyeIcon.parentElement.innerHTML = '<svg class="w-5 h-5 eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>';
+    }
+}
+</script>
 {% endblock %}

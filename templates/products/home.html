@@ -4,6 +4,51 @@
 {% block title %}Home - E-Shop{% endblock %}
 
 {% block content %}
+{% if hero_images %}
+<section class="relative min-h-screen overflow-hidden">
+    <div class="absolute inset-0">
+        {% if hero_images.0.image %}
+        <img src="{{ hero_images.0.image.url }}" alt="{{ hero_images.0.title }}" class="w-full h-full object-cover" style="object-position: center;">
+        {% else %}
+        <div class="w-full h-full bg-gradient-to-br from-primary-900 via-primary-800 to-accent-900"></div>
+        {% endif %}
+        <div class="absolute inset-0 bg-gradient-to-r from-primary-900/90 via-primary-800/80 to-primary-900/90"></div>
+        <div class="absolute inset-0 bg-gradient-to-b from-primary-900/30 via-transparent to-accent-900"></div>
+    </div>
+    
+    <div class="container mx-auto px-4 py-16 lg:py-24 relative z-10">
+        <div class="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+            <div class="lg:w-1/2 text-center lg:text-left">
+                {% if hero_images.0.title %}
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight text-white animate-slide-up">
+                    {{ hero_images.0.title|linebreaksbr }}
+                </h1>
+                {% endif %}
+                {% if hero_images.0.subtitle %}
+                <p class="text-xl text-gray-300 mb-8 max-w-lg animate-slide-up">
+                    {{ hero_images.0.subtitle }}
+                </p>
+                {% endif %}
+                {% if hero_images.0.button_text and hero_images.0.button_link %}
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-slide-up">
+                    <a href="{{ hero_images.0.button_link }}" class="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-primary-700 font-bold rounded-xl hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl">
+                        <span>{{ hero_images.0.button_text }}</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    </a>
+                </div>
+                {% else %}
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-slide-up">
+                    <a href="{% url 'product_list' %}" class="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-primary-700 font-bold rounded-xl hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl">
+                        <span>Shop Now</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% else %}
 <section class="relative min-h-screen overflow-hidden">
     <div class="absolute inset-0 bg-gradient-to-br from-primary-900 via-primary-800 to-accent-900">
         <div class="absolute inset-0 bg-[url('/static/images/hero-pattern.svg')] opacity-10"></div>

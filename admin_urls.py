@@ -9,7 +9,9 @@ from admin_views import (
     AdminOfferListView, AdminOfferCreateView, AdminOfferEditView, AdminOfferDeleteView,
     AdminReviewListView, AdminReviewApproveView, AdminReviewExportView,
     AdminNotificationListView, AdminNotificationMarkReadView, AdminNotificationMarkAllReadView,
-    AdminSetupView, AdminSetupTestView, AdminSetupExportView
+    AdminSetupView, AdminSetupTestView, AdminSetupExportView,
+    AdminHeroImageView, AdminHeroImageCreateView, AdminHeroImageEditView, AdminHeroImageDeleteView,
+    AdminSocialLinksView, AdminSocialLinkDeleteView
 )
 from analytics.views import AnalyticsDashboardView
 
@@ -56,4 +58,12 @@ urlpatterns = [
     path('setup/', AdminSetupView.as_view(), name='admin_setup'),
     path('setup/test/', AdminSetupTestView.as_view(), name='admin_setup_test'),
     path('setup/export/', AdminSetupExportView.as_view(), name='admin_setup_export'),
+    
+    path('hero/', AdminHeroImageView.as_view(), name='admin_hero_images'),
+    path('hero/create/', AdminHeroImageCreateView.as_view(), name='admin_hero_image_create'),
+    path('hero/edit/<int:hero_id>/', AdminHeroImageEditView.as_view(), name='admin_hero_image_edit'),
+    path('hero/delete/<int:hero_id>/', AdminHeroImageDeleteView.as_view(), name='admin_hero_image_delete'),
+    
+    path('social/', AdminSocialLinksView.as_view(), name='admin_social_links'),
+    path('social/delete/<int:link_id>/', AdminSocialLinkDeleteView.as_view(), name='admin_social_link_delete'),
 ]

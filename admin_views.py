@@ -1471,3 +1471,210 @@ class AdminSetupExportView(View):
         response = HttpResponse(env_content, content_type='text/plain')
         response['Content-Disposition'] = 'attachment; filename=".env.example"'
         return response
+
+
+class AdminHeroImageView(View):
+    """Manage hero images."""
+    
+    template_name = 'admin/hero/list.html'
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        from core.models import HeroImage
+        hero_images = HeroImage.objects.all()
+        return render(request, self.template_name, {'hero_images': hero_images})
+
+
+class AdminHeroImageCreateView(View):
+    """Create hero image."""
+    
+    template_name = 'admin/hero/form.html'
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        return render(request, self.template_name, {'hero_image': None, 'action': 'Create'})
+    
+    def post(self, request):
+        from core.models import HeroImage
+        
+        try:
+            title = request.POST.get('title', '').strip()[:100]
+            subtitle = request.POST.get('subtitle', '').strip()[:200]
+            button_text = request.POST.get('button_text', '').strip()[:50]
+            button_link = request.POST.get('button_link', '').strip()[:255]
+            sort_order = int(request.POST.get('sort_order', 0))
+            is_active = request.POST.get('is_active') == 'on'
+            
+            if not title:
+                messages.error(request, 'Title is required')
+                return render(request, self.template_name, {'hero_image': None, 'action': 'Create'})
+            
+            if 'image' not in request.FILES:
+                messages.error(request, 'Image is required')
+                return render(request, self.template_name, {'hero_image': None, 'action': 'Create'})
+            
+            hero_image = HeroImage.objects.create(
+                title=title,
+                subtitle=subtitle,
+                image=request.FILES['image'],
+                mobile_image=request.FILES.get('mobile_image'),
+                button_text=button_text,
+                button_link=button_link,
+                sort_order=sort_order,
+                is_active=is_active
+            )
+            
+            log_admin_action(request, 'CREATE', 'HeroImage', str(hero_image.id), {
+                'title': title
+            })
+            
+            messages.success(request, 'Hero image created successfully')
+            return redirect('admin_hero_images')
+            
+        except Exception as e:
+            logger.error(f"Hero image creation failed: {e}", exc_info=True)
+            messages.error(request, f'Error: {str(e)}')
+            return render(request, self.template_name, {'hero_image': None, 'action': 'Create'})
+
+
+class AdminHeroImageEditView(View):
+    """Edit hero image."""
+    
+    template_name = 'admin/hero/form.html'
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request, hero_id):
+        from core.models import HeroImage
+        try:
+            hero_image = HeroImage.objects.get(id=hero_id)
+            return render(request, self.template_name, {'hero_image': hero_image, 'action': 'Edit'})
+        except HeroImage.DoesNotExist:
+            messages.error(request, 'Hero image not found')
+            return redirect('admin_hero_images')
+    
+    def post(self, request, hero_id):
+        from core.models import HeroImage
+        
+        try:
+            hero_image = HeroImage.objects.get(id=hero_id)
+            
+            hero_image.title = request.POST.get('title', '').strip()[:100]
+            hero_image.subtitle = request.POST.get('subtitle', '').strip()[:200]
+            hero_image.button_text = request.POST.get('button_text', '').strip()[:50]
+            hero_image.button_link = request.POST.get('button_link', '').strip()[:255]
+            hero_image.sort_order = int(request.POST.get('sort_order', 0))
+            hero_image.is_active = request.POST.get('is_active') == 'on'
+            
+            if 'image' in request.FILES:
+                hero_image.image = request.FILES['image']
+            if 'mobile_image' in request.FILES:
+                hero_image.mobile_image = request.FILES['mobile_image']
+            
+            hero_image.save()
+            
+            log_admin_action(request, 'UPDATE', 'HeroImage', str(hero_image.id))
+            messages.success(request, 'Hero image updated successfully')
+            return redirect('admin_hero_images')
+            
+        except HeroImage.DoesNotExist:
+            messages.error(request, 'Hero image not found')
+            return redirect('admin_hero_images')
+        except Exception as e:
+            logger.error(f"Hero image update failed: {e}", exc_info=True)
+            messages.error(request, f'Error: {str(e)}')
+            return redirect('admin_hero_images')
+
+
+class AdminHeroImageDeleteView(View):
+    """Delete hero image."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request, hero_id):
+        from core.models import HeroImage
+        
+        try:
+            hero_image = HeroImage.objects.get(id=hero_id)
+            hero_image.image.delete(save=False)
+            if hero_image.mobile_image:
+                hero_image.mobile_image.delete(save=False)
+            hero_image.delete()
+            
+            log_admin_action(request, 'DELETE', 'HeroImage', str(hero_id))
+            return JsonResponse({'success': True})
+        except HeroImage.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+
+
+class AdminSocialLinksView(View):
+    """Manage social links."""
+    
+    template_name = 'admin/social/list.html'
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request):
+        from core.models import SocialLink
+        social_links = SocialLink.objects.all()
+        return render(request, self.template_name, {'social_links': social_links})
+    
+    def post(self, request):
+        from core.models import SocialLink
+        
+        try:
+            platform = request.POST.get('platform', '').strip()
+            url = request.POST.get('url', '').strip()
+            sort_order = int(request.POST.get('sort_order', 0))
+            is_active = request.POST.get('is_active') == 'on'
+            
+            if not platform or not url:
+                return JsonResponse({'error': 'Platform and URL are required'}, status=400)
+            
+            SocialLink.objects.update_or_create(
+                platform=platform,
+                defaults={
+                    'url': url,
+                    'sort_order': sort_order,
+                    'is_active': is_active
+                }
+            )
+            
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+class AdminSocialLinkDeleteView(View):
+    """Delete social link."""
+    
+    @method_decorator(login_required)
+    @method_decorator(user_passes_test(is_staff_user, login_url='/accounts/login/'))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request, link_id):
+        from core.models import SocialLink
+        
+        try:
+            SocialLink.objects.get(id=link_id).delete()
+            return JsonResponse({'success': True})
+        except SocialLink.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)

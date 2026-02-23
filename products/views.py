@@ -48,7 +48,12 @@ class HomeView(View):
         if cached_data:
             return render(request, self.template_name, cached_data)
         
-        # Use values() for lighter queries
+        from core.models import HeroImage, SocialLink
+        
+        hero_images = list(HeroImage.objects.filter(is_active=True).order_by('sort_order')[:5])
+        
+        social_links = list(SocialLink.objects.filter(is_active=True).order_by('sort_order'))
+        
         featured_products = list(
             Product.objects.filter(
                 is_featured=True, 
@@ -65,6 +70,8 @@ class HomeView(View):
         categories = get_categories_cached()
         
         context = {
+            'hero_images': hero_images,
+            'social_links': social_links,
             'featured_products': featured_products,
             'latest_products': latest_products,
             'categories': categories,

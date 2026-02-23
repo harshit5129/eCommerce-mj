@@ -1,0 +1,93 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}{{ action }} Hero Image - Admin Panel{% endblock %}
+
+{% block admin_content %}
+<div class="mb-6">
+    <nav class="flex items-center text-sm text-gray-500 mb-2">
+        <a href="{% url 'admin_hero_images' %}" class="hover:text-primary-600">Hero Images</a>
+        <svg class="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span class="text-gray-700">{{ action }}</span>
+    </nav>
+    <h1 class="text-2xl font-bold text-white">{{ action }} Hero Image</h1>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="max-w-2xl">
+    {% csrf_token %}
+    
+    <div class="bg-dark-900/50 rounded-2xl border border-dark-700/50 p-6 space-y-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Title *</label>
+            <input type="text" name="title" value="{{ hero_image.title|default:'' }}" required
+                   class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                   placeholder="Enter hero title">
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Subtitle</label>
+            <input type="text" name="subtitle" value="{{ hero_image.subtitle|default:'' }}"
+                   class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                   placeholder="Enter subtitle">
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Desktop Image * {% if hero_image %}(Leave empty to keep current){% endif %}</label>
+            <input type="file" name="image" accept="image/*" {% if not hero_image %}required{% endif %}
+                   class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-1 file:px-4 file:rounded-lg file:border-0 file:bg-secondary-500/20 file:text-secondary-300 hover:file:bg-secondary-500/30">
+            {% if hero_image.image %}
+            <p class="text-xs text-gray-500 mt-1">Current: {{ hero_image.image.name }}</p>
+            <img src="{{ hero_image.image.url }}" alt="Current" class="mt-2 w-48 h-24 object-cover rounded-lg">
+            {% endif %}
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Mobile Image (Optional)</label>
+            <input type="file" name="mobile_image" accept="image/*"
+                   class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-1 file:px-4 file:rounded-lg file:border-0 file:bg-secondary-500/20 file:text-secondary-300 hover:file:bg-secondary-500/30">
+            {% if hero_image.mobile_image %}
+            <p class="text-xs text-gray-500 mt-1">Current: {{ hero_image.mobile_image.name }}</p>
+            <img src="{{ hero_image.mobile_image.url }}" alt="Current mobile" class="mt-2 w-24 h-24 object-cover rounded-lg">
+            {% endif %}
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Button Text</label>
+                <input type="text" name="button_text" value="{{ hero_image.button_text|default:'' }}"
+                       class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                       placeholder="Shop Now">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Button Link</label>
+                <input type="text" name="button_link" value="{{ hero_image.button_link|default:'' }}"
+                       class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                       placeholder="/products/">
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Sort Order</label>
+                <input type="number" name="sort_order" value="{{ hero_image.sort_order|default:'0' }}"
+                       class="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+            <div class="flex items-center">
+                <label class="flex items-center gap-2 cursor-pointer mt-6">
+                    <input type="checkbox" name="is_active" {% if hero_image.is_active or not hero_image %}checked{% endif %}
+                           class="w-5 h-5 rounded border-dark-600 bg-dark-800 text-primary-500 focus:ring-primary-500">
+                    <span class="text-gray-300">Active</span>
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-6 flex items-center gap-4">
+        <a href="{% url 'admin_hero_images' %}" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors">
+            Cancel
+        </a>
+        <button type="submit" class="px-6 py-2 btn-glow text-white rounded-lg font-medium transition-colors">
+            {{ action }} Hero Image
+        </button>
+    </div>
+</form>
+{% endblock %}

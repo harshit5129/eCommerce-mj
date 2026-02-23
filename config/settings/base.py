@@ -134,11 +134,6 @@ DATABASES = {
     }
 }
 
-# Connection pooling for PostgreSQL (production)
-if not DEBUG:
-    DATABASES['default']['OPTIONS']['MAX_CONNS'] = 20
-    DATABASES['default']['OPTIONS']['MIN_CONNS'] = 5
-
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -249,17 +244,11 @@ PASSWORD_RESET_TIMEOUT = int(get_db_setting('PASSWORD_RESET_TIMEOUT', 3600))
 
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': get_db_setting('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
 
-# Sessions using cache
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 RATE_LIMIT_REQUESTS = int(get_db_setting('RATE_LIMIT_REQUESTS', '100'))
 RATE_LIMIT_PERIOD = int(get_db_setting('RATE_LIMIT_PERIOD', '60'))

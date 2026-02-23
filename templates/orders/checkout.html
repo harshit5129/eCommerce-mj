@@ -224,9 +224,9 @@
                             <div class="flex justify-between text-gray-400">
                                 <span>Shipping</span>
                                 <span class="font-semibold">
-                                    {% if cart_total >= 4000 %}<span class="text-secondary-400">Free</span>{% else %}{{ shipping_cost|rupee }}{% endif %}
+                                    {% if cart_total >= free_shipping_threshold %}<span class="text-secondary-400">Free</span>{% else %}{{ shipping_cost|rupee }}{% endif %}
                                 </span>
-                                <input type="hidden" name="shipping_cost" value="{% if cart_total >= 4000 %}0{% else %}{{ shipping_cost }}{% endif %}">
+                                <input type="hidden" name="shipping_cost" value="{% if cart_total >= free_shipping_threshold %}0{% else %}{{ shipping_cost }}{% endif %}">
                             </div>
                             <div class="flex justify-between text-gray-400">
                                 <span>Tax ({{ site_settings.tax_name|default:"GST" }} {{ site_settings.tax_rate|default:18 }}%)</span>

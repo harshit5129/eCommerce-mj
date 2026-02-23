@@ -459,12 +459,14 @@ class OrderHistoryView(View):
             messages.warning(request, 'Please login to view your orders.')
             return redirect('login')
         
-        # Use select_related and only fetch needed fields
+        # Use select_related and prefetch_related for optimization
         orders = Order.objects.filter(
             user_id=str(request.user.id)
-        ).order_by('-created_at')[:50]
+        ).prefetch_related('items').order_by('-created_at')[:50]
         
-        return render(request, self.template_name, {'orders': orders})
+        site_settings = get_site_settings()
+        
+        return render(request, self.template_name, {'orders': orders, 'site_settings': site_settings})
 
 
 class OrderDetailView(View):
@@ -486,7 +488,9 @@ class OrderDetailView(View):
             messages.error(request, 'Order not found.')
             return redirect('order_history')
         
-        return render(request, self.template_name, {'order': order})
+        site_settings = get_site_settings()
+        
+        return render(request, self.template_name, {'order': order, 'site_settings': site_settings})
 
 
 @csrf_protect

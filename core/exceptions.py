@@ -78,11 +78,19 @@ def custom_exception_handler(exc, context):
                 },
             }
         else:
-            custom_response['error'] = {
-                'type': 'error',
-                'message': str(exc) if str(exc) else 'An error occurred',
-                'details': response.data if response.data else None,
-            }
+            import settings as django_settings
+            if django_settings.DEBUG:
+                custom_response['error'] = {
+                    'type': 'error',
+                    'message': str(exc) if str(exc) else 'An error occurred',
+                    'details': response.data if response.data else None,
+                }
+            else:
+                custom_response['error'] = {
+                    'type': 'error',
+                    'message': 'An error occurred',
+                    'details': None,
+                }
         
         response.data = custom_response
     

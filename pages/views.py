@@ -73,8 +73,8 @@ Message:
                 
                 messages.success(request, 'Your message has been sent successfully! We will get back to you soon.')
             except Exception as e:
-                logger.error(f"Contact form error: {e}")
-                messages.success(request, 'Your message has been received. Thank you!')
+                logger.error(f"Contact form error: {e}", exc_info=True)
+                messages.error(request, 'There was an error sending your message. Please try again later.')
         else:
             messages.error(request, 'Please fill in all required fields.')
         

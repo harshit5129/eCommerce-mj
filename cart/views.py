@@ -89,6 +89,9 @@ class CartView(View):
         
         order_total = cart_total + shipping + tax - discount
         
+        from products.models import Product
+        featured_products = list(Product.objects.filter(is_active=True, is_featured=True).select_related('category').prefetch_related('images')[:4])
+        
         context = {
             'cart_items': cart_items,
             'cart_total': cart_total,
@@ -98,6 +101,7 @@ class CartView(View):
             'order_total': order_total,
             'coupon_code': coupon_code if valid_coupon else None,
             'site_settings': site_settings,
+            'featured_products': featured_products,
         }
         return render(request, self.template_name, context)
 

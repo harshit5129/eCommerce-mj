@@ -5,6 +5,12 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 import admin_urls
+from core.exceptions import handle_404_error, handle_500_error, handle_403_error, handle_400_error
+
+handler404 = handle_404_error
+handler500 = handle_500_error
+handler403 = handle_403_error
+handler400 = handle_400_error
 
 urlpatterns = [
     # Django Admin

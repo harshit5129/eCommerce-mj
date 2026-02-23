@@ -15,10 +15,12 @@ services:
         value: 8000
       - key: ALLOWED_HOSTS
         value: .onrender.com,localhost,127.0.0.1
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://*.onrender.com
       - key: CSRF_COOKIE_SECURE
-        value: False
+        value: True
       - key: SESSION_COOKIE_SECURE
-        value: False
+        value: True
       - key: SECURE_SSL_REDIRECT
         value: False
       - key: DATABASE_URL

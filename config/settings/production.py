@@ -48,6 +48,8 @@ CSRF_COOKIE_SECURE = str(get_db_setting('CSRF_COOKIE_SECURE', 'True')).lower() =
 SESSION_COOKIE_SECURE = str(get_db_setting('SESSION_COOKIE_SECURE', 'True')).lower() == 'true'
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 SECURE_SSL_REDIRECT = str(get_db_setting('SECURE_SSL_REDIRECT', 'False')).lower() == 'true'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -131,9 +133,14 @@ LOGGING = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = str(get_db_setting('CORS_ALLOWED_ORIGINS', '')).split(',') if get_db_setting('CORS_ALLOWED_ORIGINS') else []
+cors_origins = get_db_setting('CORS_ALLOWED_ORIGINS', '')
+CORS_ALLOWED_ORIGINS = [o.strip() for o in cors_origins.split(',') if o.strip()] if cors_origins else []
 
-CSRF_TRUSTED_ORIGINS = str(get_db_setting('CSRF_TRUSTED_ORIGINS', '')).split(',') if get_db_setting('CSRF_TRUSTED_ORIGINS') else []
+csrf_origins = get_db_setting('CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in csrf_origins.split(',') if o.strip()] if csrf_origins else []
+
+if not CSRF_TRUSTED_ORIGINS and ALLOWED_HOSTS:
+    CSRF_TRUSTED_ORIGINS = [f'https://{host}' if not host.startswith('.') else f'https://*{host}' for host in ALLOWED_HOSTS if host]
 
 RATE_LIMIT_REQUESTS = int(get_db_setting('RATE_LIMIT_REQUESTS', '100'))
 RATE_LIMIT_PERIOD = int(get_db_setting('RATE_LIMIT_PERIOD', '60'))
